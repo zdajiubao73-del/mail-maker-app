@@ -31,12 +31,23 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.*
 .env*.local
+
+# logs
+*.log
+
+# test results
+test-results/
 
 # typescript
 *.tsbuildinfo
 
 app-example
+
+# Supabase
+supabase/.temp/
 
 # generated native folders
 /ios

@@ -65,6 +65,13 @@ export type MailGenerationRequest = {
   tone: ToneSettings;
   additionalInfo: AdditionalInfo;
   templateId?: string;
+  learningContext?: {
+    preferredOpenings?: string[];
+    preferredClosings?: string[];
+    averageBodyLength?: number;
+    signature?: string;
+    writingStyleNotes?: string;
+  };
 };
 
 /** 生成されたメール */
@@ -82,9 +89,35 @@ export type MailHistoryItem = {
   body: string;
   recipientName: string;
   recipientEmail: string;
+  cc?: string[];
+  bcc?: string[];
   sentAt?: Date;
   createdAt: Date;
   status: 'draft' | 'generated' | 'sent';
+  attachments?: AttachmentMeta[];
+  generationContext?: {
+    recipient: RecipientSettings;
+    purposeCategory: PurposeCategory;
+    situation: string;
+    tone: ToneSettings;
+  };
+};
+
+/** 添付ファイル（プレビュー画面での一時利用） */
+export type Attachment = {
+  id: string;
+  name: string;
+  uri: string;
+  mimeType: string;
+  size: number;
+};
+
+/** 添付ファイルメタデータ（履歴保存用、base64データは含まない） */
+export type AttachmentMeta = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
 };
 
 /** 生成モード */

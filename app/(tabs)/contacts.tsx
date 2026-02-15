@@ -9,13 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useContactStore } from '@/store/use-contact-store';
+import { isValidEmail } from '@/lib/validation';
 import type { Contact, ContactGroup, Relationship } from '@/types';
 
 type FilterTab = 'すべて' | ContactGroup;
@@ -43,37 +43,48 @@ const GROUP_COLORS: Record<ContactGroup, string> = {
   プライベート: '#AF52DE',
 };
 
-const RELATIONSHIP_COLOR = '#34C759';
+const RELATIONSHIP_COLOR = '#10B981';
+
+function getInitial(name: string): string {
+  return name.charAt(0);
+}
 
 function ContactItem({
   contact,
-  cardBackground,
+  colors,
   onLongPress,
 }: {
   contact: Contact;
-  cardBackground: string;
+  colors: (typeof Colors)['light'];
   onLongPress: () => void;
 }) {
   const groupColor = GROUP_COLORS[contact.group];
 
   return (
     <TouchableOpacity
-      style={[styles.contactItem, { backgroundColor: cardBackground }]}
-      activeOpacity={0.7}
+      style={[styles.contactItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      activeOpacity={0.6}
       onLongPress={onLongPress}
     >
+      {/* Avatar */}
+      <View style={[styles.avatar, { backgroundColor: groupColor + '20' }]}>
+        <ThemedText style={[styles.avatarText, { color: groupColor }]}>
+          {getInitial(contact.name)}
+        </ThemedText>
+      </View>
+
       <View style={styles.contactInfo}>
         <ThemedText type="defaultSemiBold" style={styles.contactName}>
           {contact.name}
         </ThemedText>
-        <ThemedText style={styles.contactEmail} numberOfLines={1}>
+        <ThemedText style={[styles.contactEmail, { color: colors.textSecondary }]} numberOfLines={1}>
           {contact.email}
         </ThemedText>
         <View style={styles.badgeRow}>
           <View
             style={[
               styles.badge,
-              { backgroundColor: RELATIONSHIP_COLOR + '20' },
+              { backgroundColor: RELATIONSHIP_COLOR + '15' },
             ]}
           >
             <ThemedText
@@ -83,7 +94,7 @@ function ContactItem({
             </ThemedText>
           </View>
           <View
-            style={[styles.badge, { backgroundColor: groupColor + '20' }]}
+            style={[styles.badge, { backgroundColor: groupColor + '15' }]}
           >
             <ThemedText style={[styles.badgeText, { color: groupColor }]}>
               {contact.group}
@@ -93,20 +104,22 @@ function ContactItem({
       </View>
       <IconSymbol
         name="chevron.right"
-        size={16}
-        color={Colors.light.icon}
+        size={14}
+        color={colors.icon}
       />
     </TouchableOpacity>
   );
 }
 
-function EmptyContactState() {
+function EmptyContactState({ colors }: { colors: (typeof Colors)['light'] }) {
   return (
     <View style={styles.emptyState}>
-      <ThemedText style={styles.emptyIcon}>👤</ThemedText>
+      <View style={[styles.emptyIconContainer, { backgroundColor: colors.surfaceSecondary }]}>
+        <IconSymbol name="person.2.fill" size={40} color={colors.icon} />
+      </View>
       <ThemedText style={styles.emptyText}>連絡先がありません</ThemedText>
-      <ThemedText style={styles.emptySubtext}>
-        「+」ボタンから連絡先を追加しましょう
+      <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+        右上の「+」ボタンから連絡先を追加しましょう
       </ThemedText>
     </View>
   );
@@ -127,9 +140,8 @@ export default function ContactsScreen() {
     useState<Relationship>('同僚');
   const [newGroup, setNewGroup] = useState<ContactGroup>('仕事');
 
-  const cardBackground = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
-  const inputBackground = colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7';
-  const modalBackground = colorScheme === 'dark' ? '#1C1C1E' : '#FFFFFF';
+  const inputBackground = colors.surfaceSecondary;
+  const modalBackground = colors.background;
 
   const filteredContacts =
     selectedFilter === 'すべて'
@@ -156,6 +168,10 @@ export default function ContactsScreen() {
       Alert.alert('入力エラー', '名前とメールアドレスを入力してください');
       return;
     }
+    if (!isValidEmail(newEmail.trim())) {
+      Alert.alert('入力エラー', '正しいメールアドレスを入力してください');
+      return;
+    }
 
     const newContact: Contact = {
       id: `contact-${Date.now()}`,
@@ -177,10 +193,8 @@ export default function ContactsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <View style={styles.header}>
-          <ThemedText type="title">連絡先</ThemedText>
+        {/* Header action */}
+        <View style={styles.headerActions}>
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: colors.tint }]}
             onPress={() => setIsModalVisible(true)}
@@ -228,7 +242,7 @@ export default function ContactsScreen() {
           renderItem={({ item }) => (
             <ContactItem
               contact={item}
-              cardBackground={cardBackground}
+              colors={colors}
               onLongPress={() => handleDeleteContact(item)}
             />
           )}
@@ -236,7 +250,7 @@ export default function ContactsScreen() {
             styles.listContent,
             filteredContacts.length === 0 && styles.listContentEmpty,
           ]}
-          ListEmptyComponent={EmptyContactState}
+          ListEmptyComponent={<EmptyContactState colors={colors} />}
           showsVerticalScrollIndicator={false}
         />
 
@@ -255,7 +269,7 @@ export default function ContactsScreen() {
           >
             <SafeAreaView style={styles.modalSafeArea}>
               {/* Modal Header */}
-              <View style={styles.modalHeader}>
+              <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
                 <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                   <ThemedText style={[styles.modalCancel, { color: colors.tint }]}>
                     キャンセル
@@ -289,6 +303,7 @@ export default function ContactsScreen() {
                     onChangeText={setNewName}
                     placeholder="例: 田中太郎"
                     placeholderTextColor={colors.icon}
+                    maxLength={50}
                   />
                 </View>
 
@@ -308,8 +323,10 @@ export default function ContactsScreen() {
                     onChangeText={setNewEmail}
                     placeholder="例: tanaka@example.com"
                     placeholderTextColor={colors.icon}
-                    keyboardType="email-address"
+                    keyboardType="default"
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    maxLength={254}
                   />
                 </View>
 
@@ -386,7 +403,6 @@ export default function ContactsScreen() {
             </SafeAreaView>
           </View>
         </Modal>
-      </SafeAreaView>
     </ThemedView>
   );
 }
@@ -395,16 +411,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
+  headerActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   addButton: {
     width: 36,
@@ -421,8 +433,8 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    paddingHorizontal: 24,
+    marginBottom: 14,
     gap: 8,
   },
   filterTab: {
@@ -435,7 +447,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingBottom: 40,
     gap: 10,
   },
@@ -447,12 +459,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '700',
   },
   contactInfo: {
     flex: 1,
@@ -484,9 +504,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 40,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   emptyText: {
     fontSize: 18,

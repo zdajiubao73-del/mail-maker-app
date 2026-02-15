@@ -1,12 +1,11 @@
 import { useRouter } from 'expo-router';
 import {
-  SafeAreaView,
+  Linking,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -16,7 +15,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 type SettingsItem = {
   label: string;
   icon: string;
+  iconBg: string;
   route?: string;
+  externalUrl?: string;
   disabled?: boolean;
   badge?: string;
   value?: string;
@@ -34,11 +35,13 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       {
         label: 'マイアカウント',
         icon: 'person.fill',
+        iconBg: '#4F46E5',
         route: '/settings/account',
       },
       {
         label: 'メール連携',
         icon: 'envelope.fill',
+        iconBg: '#0EA5E9',
         route: '/settings/account',
       },
     ],
@@ -49,6 +52,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       {
         label: 'プラン・課金',
         icon: 'creditcard.fill',
+        iconBg: '#F59E0B',
         route: '/settings/plan',
       },
     ],
@@ -59,14 +63,14 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
       {
         label: 'プリセット管理',
         icon: 'tray.full.fill',
-        disabled: true,
-        badge: '準備中',
+        iconBg: '#8B5CF6',
+        route: '/settings/presets',
       },
       {
         label: '学習データ管理',
         icon: 'brain.head.profile',
-        disabled: true,
-        badge: '準備中',
+        iconBg: '#EC4899',
+        route: '/settings/learning-data',
       },
     ],
   },
@@ -74,13 +78,27 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     title: 'その他',
     items: [
       {
+        label: 'お問い合わせ',
+        icon: 'envelope.fill',
+        iconBg: '#3B82F6',
+        externalUrl: 'mailto:support@ai-mail-app.com',
+      },
+      {
+        label: '利用規約',
+        icon: 'doc.text.fill',
+        iconBg: '#6366F1',
+        route: '/settings/terms',
+      },
+      {
         label: 'プライバシーポリシー',
         icon: 'lock.shield.fill',
+        iconBg: '#10B981',
         route: '/settings/privacy',
       },
       {
         label: 'バージョン',
         icon: 'info.circle.fill',
+        iconBg: '#94A3B8',
         value: '1.0.0',
       },
     ],
@@ -91,35 +109,34 @@ export default function SettingsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
-  const cardBackground = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
-  const separatorColor = colorScheme === 'dark' ? '#38383A' : '#E5E5EA';
-
   const handlePress = (item: SettingsItem) => {
-    if (item.disabled || !item.route) return;
+    if (item.disabled) return;
+    if (item.externalUrl) {
+      Linking.openURL(item.externalUrl);
+      return;
+    }
+    if (!item.route) return;
     router.push(item.route as never);
   };
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <ThemedText type="title">設定</ThemedText>
-          </View>
-
           {SETTINGS_SECTIONS.map((section) => (
             <View key={section.title} style={styles.section}>
-              <ThemedText style={[styles.sectionTitle, { color: colors.icon }]}>
+              <ThemedText style={[styles.sectionTitle, { color: colors.textSecondary }]}>
                 {section.title}
               </ThemedText>
               <View
                 style={[
                   styles.sectionCard,
-                  { backgroundColor: cardBackground },
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
                 ]}
               >
                 {section.items.map((item, index) => (
@@ -128,7 +145,7 @@ export default function SettingsScreen() {
                       <View
                         style={[
                           styles.separator,
-                          { backgroundColor: separatorColor },
+                          { backgroundColor: colors.border },
                         ]}
                       />
                     )}
@@ -137,23 +154,26 @@ export default function SettingsScreen() {
                         styles.settingsRow,
                         item.disabled && styles.settingsRowDisabled,
                       ]}
-                      activeOpacity={item.disabled ? 1 : 0.6}
+                      activeOpacity={item.disabled ? 1 : 0.5}
                       onPress={() => handlePress(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={item.value ? `${item.label}: ${item.value}` : item.label}
+                      accessibilityState={{ disabled: item.disabled }}
                     >
                       <View
                         style={[
                           styles.iconContainer,
                           {
                             backgroundColor: item.disabled
-                              ? colors.icon + '20'
-                              : colors.tint + '15',
+                              ? colors.surfaceSecondary
+                              : item.iconBg,
                           },
                         ]}
                       >
                         <IconSymbol
                           name={item.icon as never}
-                          size={18}
-                          color={item.disabled ? colors.icon : colors.tint}
+                          size={16}
+                          color={item.disabled ? colors.icon : '#FFFFFF'}
                         />
                       </View>
                       <ThemedText
@@ -166,8 +186,8 @@ export default function SettingsScreen() {
                       </ThemedText>
                       <View style={styles.settingsRowRight}>
                         {item.badge && (
-                          <View style={styles.comingSoonBadge}>
-                            <ThemedText style={styles.comingSoonText}>
+                          <View style={[styles.comingSoonBadge, { backgroundColor: colors.warning + '18' }]}>
+                            <ThemedText style={[styles.comingSoonText, { color: colors.warning }]}>
                               {item.badge}
                             </ThemedText>
                           </View>
@@ -176,16 +196,16 @@ export default function SettingsScreen() {
                           <ThemedText
                             style={[
                               styles.valueText,
-                              { color: colors.icon },
+                              { color: colors.textSecondary },
                             ]}
                           >
                             {item.value}
                           </ThemedText>
                         )}
-                        {item.route && !item.disabled && (
+                        {(item.route || item.externalUrl) && !item.disabled && (
                           <IconSymbol
                             name="chevron.right"
-                            size={14}
+                            size={13}
                             color={colors.icon}
                           />
                         )}
@@ -197,7 +217,6 @@ export default function SettingsScreen() {
             </View>
           ))}
         </ScrollView>
-      </SafeAreaView>
     </ThemedView>
   );
 }
@@ -206,36 +225,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  safeArea: {
-    flex: 1,
-  },
   scrollContent: {
     paddingBottom: 40,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+    marginTop: 28,
+    paddingHorizontal: 24,
   },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    letterSpacing: 0.8,
+    marginBottom: 10,
     marginLeft: 4,
   },
   sectionCard: {
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   settingsRow: {
     flexDirection: 'row',
@@ -252,11 +260,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   settingsLabel: {
     flex: 1,
     fontSize: 16,
+    fontWeight: '500',
   },
   settingsRowRight: {
     flexDirection: 'row',
@@ -265,20 +274,19 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: 60,
+    marginLeft: 62,
   },
   comingSoonBadge: {
-    backgroundColor: '#FF950020',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   comingSoonText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#FF9500',
+    fontWeight: '700',
   },
   valueText: {
     fontSize: 15,
+    fontWeight: '500',
   },
 });

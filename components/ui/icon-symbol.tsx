@@ -26,6 +26,7 @@ const MAPPING = {
   'doc.text.fill': 'description',
 
   // General UI
+  'chevron.left': 'chevron-left',
   'chevron.right': 'chevron-right',
   'chevron.left.forwardslash.chevron.right': 'code',
 
@@ -37,6 +38,17 @@ const MAPPING = {
   'brain.head.profile': 'psychology',
   'lock.shield.fill': 'shield',
   'info.circle.fill': 'info',
+
+  // Account / Login icons
+  'envelope.badge.fill': 'mail',
+  'plus.circle.fill': 'add-circle',
+  'rectangle.portrait.and.arrow.right': 'logout',
+  'person.crop.circle.fill': 'account-circle',
+  'play.fill': 'play-arrow',
+
+  // Tips / misc
+  'lightbulb.fill': 'lightbulb',
+  'clock.arrow.circlepath': 'restore',
 } as IconMapping;
 
 /**

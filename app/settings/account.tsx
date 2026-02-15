@@ -1,3 +1,4 @@
+import { useEffect, useCallback } from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -13,6 +14,21 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore } from '@/store/use-auth-store';
+import {
+  getAuthRequestConfig,
+  discovery,
+  exchangeCodeForTokens,
+  clearTokens,
+  useAuthRequest,
+} from '@/lib/google-auth';
+import { clearTokens as clearAppleTokens } from '@/lib/apple-auth';
+import {
+  getAuthRequestConfig as getMicrosoftAuthRequestConfig,
+  discovery as microsoftDiscovery,
+  exchangeCodeForTokens as exchangeMicrosoftCodeForTokens,
+  clearTokens as clearMicrosoftTokens,
+  useAuthRequest as useMicrosoftAuthRequest,
+} from '@/lib/microsoft-auth';
 import type { AuthStatus, MailAccount, MailAccountType } from '@/types/user';
 
 /* -------------------------------------------------------------------------- */
@@ -60,34 +76,115 @@ export default function AccountScreen() {
   const cardBg = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
   const dividerColor = colorScheme === 'dark' ? '#2C2F33' : '#E5E5EA';
 
+  // Google OAuth のセットアップ
+  const authConfig = getAuthRequestConfig();
+  const hasGoogleClientId = !!authConfig.clientId;
+  const [request, response, promptAsync] = useAuthRequest(
+    hasGoogleClientId ? authConfig : { ...authConfig, clientId: 'placeholder' },
+    discovery,
+  );
+
+  // Microsoft OAuth のセットアップ
+  const msAuthConfig = getMicrosoftAuthRequestConfig();
+  const hasMicrosoftClientId = !!msAuthConfig.clientId;
+  const [msRequest, msResponse, msPromptAsync] = useMicrosoftAuthRequest(
+    hasMicrosoftClientId ? msAuthConfig : { ...msAuthConfig, clientId: 'placeholder' },
+    microsoftDiscovery,
+  );
+
+  // Google OAuth レスポンスを処理
+  useEffect(() => {
+    if (response?.type !== 'success') return;
+    const { code } = response.params;
+    if (!code) return;
+
+    (async () => {
+      try {
+        const tokens = await exchangeCodeForTokens(
+          code,
+          request?.codeVerifier,
+        );
+        addMailAccount({
+          id: `gmail-${Date.now()}`,
+          type: 'gmail',
+          email: tokens.email,
+          authStatus: 'authenticated',
+        });
+        Alert.alert('連携完了', `${tokens.email} でGmailアカウントを連携しました。`);
+      } catch {
+        Alert.alert('エラー', 'Gmailの連携に失敗しました。もう一度お試しください。');
+      }
+    })();
+  }, [response]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Microsoft OAuth レスポンスを処理
+  useEffect(() => {
+    if (msResponse?.type !== 'success') return;
+    const { code } = msResponse.params;
+    if (!code) return;
+
+    (async () => {
+      try {
+        const tokens = await exchangeMicrosoftCodeForTokens(
+          code,
+          msRequest?.codeVerifier,
+        );
+        addMailAccount({
+          id: `outlook-${Date.now()}`,
+          type: 'outlook',
+          email: tokens.email,
+          authStatus: 'authenticated',
+        });
+        Alert.alert('連携完了', `${tokens.email} でOutlookアカウントを連携しました。`);
+      } catch {
+        Alert.alert('エラー', 'Outlookの連携に失敗しました。もう一度お試しください。');
+      }
+    })();
+  }, [msResponse]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ---- Handlers ---------------------------------------------------------- */
+
+  const handleAddGmail = useCallback(async () => {
+    if (hasGoogleClientId) {
+      // 実際のOAuth認証フロー
+      await promptAsync();
+    } else {
+      // Google Client ID 未設定時はモック追加
+      addMailAccount({
+        id: `gmail-${Date.now()}`,
+        type: 'gmail',
+        email: `user${Math.floor(Math.random() * 1000)}@gmail.com`,
+        authStatus: 'authenticated',
+      });
+      Alert.alert('デモモード', 'Google Client IDが未設定のため、デモアカウントを追加しました。');
+    }
+  }, [hasGoogleClientId, promptAsync, addMailAccount]);
+
+  const handleAddOutlook = useCallback(async () => {
+    if (hasMicrosoftClientId) {
+      // 実際のOAuth認証フロー
+      await msPromptAsync();
+    } else {
+      // Microsoft Client ID 未設定時はモック追加
+      addMailAccount({
+        id: `outlook-${Date.now()}`,
+        type: 'outlook',
+        email: `user${Math.floor(Math.random() * 1000)}@outlook.com`,
+        authStatus: 'authenticated',
+      });
+      Alert.alert('デモモード', 'Microsoft Client IDが未設定のため、デモアカウントを追加しました。');
+    }
+  }, [hasMicrosoftClientId, msPromptAsync, addMailAccount]);
 
   const handleAddAccount = () => {
     Alert.alert('アカウントを追加', '連携するメールサービスを選択してください', [
       {
         text: 'Gmail',
-        onPress: () => {
-          Alert.alert('準備中', 'OAuth認証画面は準備中です');
-          // Mock: add a demo account
-          addMailAccount({
-            id: `gmail-${Date.now()}`,
-            type: 'gmail',
-            email: `user${Math.floor(Math.random() * 1000)}@gmail.com`,
-            authStatus: 'authenticated',
-          });
-        },
+        onPress: handleAddGmail,
       },
       {
         text: 'Outlook',
-        onPress: () => {
-          Alert.alert('準備中', 'OAuth認証画面は準備中です');
-          addMailAccount({
-            id: `outlook-${Date.now()}`,
-            type: 'outlook',
-            email: `user${Math.floor(Math.random() * 1000)}@outlook.com`,
-            authStatus: 'authenticated',
-          });
-        },
+        onPress: handleAddOutlook,
       },
       { text: 'キャンセル', style: 'cancel' },
     ]);
@@ -114,7 +211,12 @@ export default function AccountScreen() {
       {
         text: 'ログアウト',
         style: 'destructive',
-        onPress: () => logout(),
+        onPress: async () => {
+          await clearTokens();
+          await clearMicrosoftTokens();
+          await clearAppleTokens();
+          logout();
+        },
       },
     ]);
   };
@@ -131,7 +233,13 @@ export default function AccountScreen() {
     );
   }
 
-  const isPremium = user.plan === 'premium';
+  const planBadgeConfig = {
+    subscribed: { label: 'サブスクリプション', color: '#FFD60A', bgColor: '#FFD60A20' },
+    trial: { label: 'トライアル', color: '#34C759', bgColor: '#34C75920' },
+    free: { label: '未登録', color: '#8E8E93', bgColor: '#8E8E9320' },
+    expired: { label: '期限切れ', color: '#FF3B30', bgColor: '#FF3B3020' },
+  };
+  const badge = planBadgeConfig[user.plan] ?? planBadgeConfig.free;
 
   return (
     <ThemedView style={styles.container}>
@@ -169,18 +277,16 @@ export default function AccountScreen() {
                 <View
                   style={[
                     styles.planBadge,
-                    {
-                      backgroundColor: isPremium ? '#FFD60A20' : '#8E8E9320',
-                    },
+                    { backgroundColor: badge.bgColor },
                   ]}
                 >
                   <ThemedText
                     style={[
                       styles.planBadgeText,
-                      { color: isPremium ? '#FFD60A' : '#8E8E93' },
+                      { color: badge.color },
                     ]}
                   >
-                    {isPremium ? 'プレミアム' : '無料プラン'}
+                    {badge.label}
                   </ThemedText>
                 </View>
               </View>

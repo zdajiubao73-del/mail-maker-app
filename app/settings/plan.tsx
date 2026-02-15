@@ -1,59 +1,102 @@
+import { useState, useEffect, useCallback } from 'react';
 import {
   Alert,
+  ActivityIndicator,
+  Linking,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
+import { MONTHLY_PRICE, YEARLY_PRICE, PREMIUM_MONTHLY_LIMIT } from '@/constants/plan';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePlanStore } from '@/store/use-plan-store';
+import {
+  getOfferings,
+  purchasePackage,
+  restorePurchases,
+  isPurchasesConfigured,
+} from '@/lib/purchases';
 
-/* -------------------------------------------------------------------------- */
-/*  Plan feature data                                                          */
-/* -------------------------------------------------------------------------- */
-
-type Feature = {
-  label: string;
-  free: string;
-  premium: string;
-};
-
-const FEATURES: Feature[] = [
-  { label: 'メール生成回数', free: '1日5回まで', premium: '無制限' },
-  { label: 'トーン設定', free: '基本トーン', premium: '全トーン利用可能' },
-  {
-    label: 'テンプレート',
-    free: '基本テンプレート',
-    premium: '全テンプレート利用可能',
-  },
-  { label: '履歴保存', free: '直近10件', premium: '無制限' },
-  { label: '広告', free: 'あり', premium: 'なし' },
-  { label: 'メール直接送信', free: '—', premium: '対応' },
+const FEATURES = [
+  `AIメール自動生成（月${PREMIUM_MONTHLY_LIMIT}回まで）`,
+  '全トーン設定',
+  '全テンプレート利用可能',
+  '履歴保存（無制限）',
+  'メール直接送信',
+  '広告なし',
 ];
-
-/* -------------------------------------------------------------------------- */
-/*  Component                                                                  */
-/* -------------------------------------------------------------------------- */
 
 export default function PlanScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const isPremium = usePlanStore((s) => s.isPremium);
+  const currentPlan = usePlanStore((s) => s.currentPlan);
+  const isSubscribed = usePlanStore((s) => s.isSubscribed);
+  const syncWithRevenueCat = usePlanStore((s) => s.syncWithRevenueCat);
+  const getTrialDaysRemaining = usePlanStore((s) => s.getTrialDaysRemaining);
+
+  const [packages, setPackages] = useState<any[]>([]);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const cardBg = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
-  const subtleBg = colorScheme === 'dark' ? '#2C2F33' : '#F2F2F7';
-  const dividerColor = colorScheme === 'dark' ? '#2C2F33' : '#E5E5EA';
 
-  const handleUpgrade = () => {
-    Alert.alert('準備中', 'App Store課金は準備中です');
-  };
+  const configured = isPurchasesConfigured();
+
+  const monthlyPkg = packages.find((p: any) => p.packageType === 'MONTHLY');
+  const annualPkg = packages.find((p: any) => p.packageType === 'ANNUAL');
+  const actualMonthlyPrice = monthlyPkg?.product?.price ?? MONTHLY_PRICE;
+  const actualYearlyPrice = annualPkg?.product?.price ?? YEARLY_PRICE;
+
+  const monthlyPerYear = Math.round(actualYearlyPrice / 12);
+  const savingsPercent = Math.round((1 - actualYearlyPrice / (actualMonthlyPrice * 12)) * 100);
+
+  useEffect(() => {
+    if (!configured) return;
+    (async () => {
+      const pkgs = await getOfferings();
+      setPackages(pkgs);
+    })();
+  }, [configured]);
+
+  const handlePurchase = useCallback(async (pkg: any) => {
+    setIsPurchasing(true);
+    try {
+      const result = await purchasePackage(pkg);
+      if (result.success) {
+        await syncWithRevenueCat();
+        Alert.alert('購入完了', 'サブスクリプションが有効になりました。');
+      } else if (result.error && result.error !== 'cancelled') {
+        Alert.alert('エラー', result.error);
+      }
+    } finally {
+      setIsPurchasing(false);
+    }
+  }, [syncWithRevenueCat]);
+
+  const handleRestore = useCallback(async () => {
+    setIsRestoring(true);
+    try {
+      const result = await restorePurchases();
+      if (result.isPremium) {
+        await syncWithRevenueCat();
+        Alert.alert('復元完了', 'サブスクリプションを復元しました。');
+      } else if (result.success) {
+        Alert.alert('復元結果', '復元可能な購入が見つかりませんでした。');
+      } else {
+        Alert.alert('エラー', result.error ?? '購入の復元に失敗しました。');
+      }
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [syncWithRevenueCat]);
 
   return (
     <ThemedView style={styles.container}>
@@ -62,191 +105,255 @@ export default function PlanScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Current Plan Badge ───────────────────────────── */}
-          <View style={styles.currentPlanContainer}>
-            <ThemedText style={[styles.currentPlanLabel, { color: colors.icon }]}>
-              現在のプラン
+          {/* Current Plan Status */}
+          <View style={styles.statusContainer}>
+            <ThemedText style={[styles.statusLabel, { color: colors.textSecondary }]}>
+              現在のステータス
             </ThemedText>
             <View
               style={[
-                styles.largeBadge,
+                styles.statusBadge,
                 {
-                  backgroundColor: isPremium() ? '#FFD60A' : subtleBg,
+                  backgroundColor:
+                    currentPlan === 'subscribed'
+                      ? '#FFD60A'
+                      : currentPlan === 'trial'
+                        ? '#34C75920'
+                        : currentPlan === 'free'
+                          ? '#8E8E9320'
+                          : '#FF3B3020',
                 },
               ]}
             >
-              {isPremium() && (
-                <IconSymbol name="crown.fill" size={24} color="#B8860B" />
+              {currentPlan === 'subscribed' && (
+                <IconSymbol name="checkmark.seal.fill" size={24} color="#B8860B" />
               )}
               <ThemedText
                 style={[
-                  styles.largeBadgeText,
-                  { color: isPremium() ? '#1A1A1A' : colors.text },
+                  styles.statusBadgeText,
+                  {
+                    color:
+                      currentPlan === 'subscribed'
+                        ? '#1A1A1A'
+                        : currentPlan === 'trial'
+                          ? '#34C759'
+                          : currentPlan === 'free'
+                            ? '#8E8E93'
+                            : '#FF3B30',
+                  },
                 ]}
               >
-                {isPremium() ? 'プレミアム' : '無料プラン'}
+                {currentPlan === 'subscribed'
+                  ? 'サブスクリプション'
+                  : currentPlan === 'trial'
+                    ? `トライアル中（残り${getTrialDaysRemaining()}日）`
+                    : currentPlan === 'free'
+                      ? '未登録'
+                      : '期限切れ'}
               </ThemedText>
             </View>
-            {isPremium() && (
-              <View style={styles.premiumCheck}>
-                <IconSymbol name="checkmark.seal.fill" size={18} color="#34C759" />
-                <ThemedText style={styles.premiumCheckText}>
+            {isSubscribed() && (
+              <View style={styles.activeNote}>
+                <IconSymbol name="checkmark.circle.fill" size={18} color="#34C759" />
+                <ThemedText style={styles.activeNoteText}>
                   すべての機能をご利用いただけます
                 </ThemedText>
               </View>
             )}
           </View>
 
-          {/* ── Comparison Table ─────────────────────────────── */}
+          {/* Features */}
           <View style={styles.sectionHeader}>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              プラン比較
+              サブスクリプション機能
             </ThemedText>
           </View>
 
           <View style={[styles.card, { backgroundColor: cardBg }]}>
-            {/* Table header */}
-            <View
-              style={[
-                styles.tableHeader,
-                { borderBottomColor: dividerColor },
-              ]}
-            >
-              <ThemedText style={[styles.tableHeaderCell, styles.featureCol]}>
-                機能
-              </ThemedText>
-              <ThemedText style={[styles.tableHeaderCell, styles.planCol]}>
-                無料
-              </ThemedText>
-              <ThemedText
-                style={[
-                  styles.tableHeaderCell,
-                  styles.planCol,
-                  { color: '#FFD60A' },
-                ]}
-              >
-                プレミアム
-              </ThemedText>
-            </View>
-
-            {/* Table rows */}
             {FEATURES.map((feature, index) => (
               <View
-                key={feature.label}
+                key={feature}
                 style={[
-                  styles.tableRow,
-                  index < FEATURES.length - 1 && {
-                    borderBottomWidth: StyleSheet.hairlineWidth,
-                    borderBottomColor: dividerColor,
-                  },
+                  styles.featureRow,
+                  index < FEATURES.length - 1 && styles.featureRowBorder,
                 ]}
               >
-                <ThemedText style={[styles.tableCell, styles.featureCol]}>
-                  {feature.label}
-                </ThemedText>
-                <ThemedText
-                  style={[styles.tableCell, styles.planCol, { color: colors.icon }]}
-                >
-                  {feature.free}
-                </ThemedText>
-                <ThemedText
-                  style={[
-                    styles.tableCell,
-                    styles.planCol,
-                    { color: colors.tint, fontWeight: '600' },
-                  ]}
-                >
-                  {feature.premium}
-                </ThemedText>
+                <IconSymbol name="checkmark.circle.fill" size={20} color="#34C759" />
+                <ThemedText style={styles.featureText}>{feature}</ThemedText>
               </View>
             ))}
           </View>
 
-          {/* ── Pricing ──────────────────────────────────────── */}
-          <View style={styles.sectionHeader}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              料金プラン
-            </ThemedText>
-          </View>
-
-          <View style={styles.pricingRow}>
-            {/* Monthly */}
-            <View
-              style={[
-                styles.priceCard,
-                { backgroundColor: cardBg },
-              ]}
-            >
-              <ThemedText style={[styles.priceLabel, { color: colors.icon }]}>
-                月額プラン
-              </ThemedText>
-              <View style={styles.priceAmountRow}>
-                <ThemedText type="title" style={styles.priceAmount}>
-                  ¥980
-                </ThemedText>
-                <ThemedText style={[styles.pricePeriod, { color: colors.icon }]}>
-                  /月
+          {/* Pricing */}
+          {!isSubscribed() && (
+            <>
+              <View style={styles.sectionHeader}>
+                <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+                  料金プラン
                 </ThemedText>
               </View>
-            </View>
 
-            {/* Yearly */}
-            <View
-              style={[
-                styles.priceCard,
-                styles.priceCardHighlight,
-                { backgroundColor: cardBg },
-              ]}
-            >
-              <View style={styles.saveBadge}>
-                <ThemedText style={styles.saveBadgeText}>お得!</ThemedText>
-              </View>
-              <ThemedText style={[styles.priceLabel, { color: colors.icon }]}>
-                年額プラン
-              </ThemedText>
-              <View style={styles.priceAmountRow}>
-                <ThemedText type="title" style={styles.priceAmount}>
-                  ¥7,800
-                </ThemedText>
-                <ThemedText style={[styles.pricePeriod, { color: colors.icon }]}>
-                  /年
-                </ThemedText>
-              </View>
-              <ThemedText style={[styles.priceNote, { color: '#34C759' }]}>
-                月あたり¥650（34%お得）
-              </ThemedText>
-            </View>
-          </View>
+              <View style={styles.pricingRow}>
+                <TouchableOpacity
+                  style={[styles.priceCard, { backgroundColor: cardBg }]}
+                  onPress={() => {
+                    if (configured && packages.length > 0) {
+                      const monthly = packages.find((p: { packageType: string }) => p.packageType === 'MONTHLY');
+                      if (monthly) handlePurchase(monthly);
+                    }
+                  }}
+                  disabled={isPurchasing || !(configured && packages.length > 0)}
+                  activeOpacity={0.7}
+                >
+                  <ThemedText style={[styles.priceLabel, { color: colors.textSecondary }]}>
+                    月額プラン
+                  </ThemedText>
+                  <View style={styles.priceAmountRow}>
+                    <ThemedText type="title" style={styles.priceAmount}>
+                      {monthlyPkg?.product?.priceString ?? `¥${MONTHLY_PRICE.toLocaleString()}`}
+                    </ThemedText>
+                    <ThemedText style={[styles.pricePeriod, { color: colors.textSecondary }]}>
+                      /月
+                    </ThemedText>
+                  </View>
+                </TouchableOpacity>
 
-          {/* ── CTA Button ───────────────────────────────────── */}
-          {isPremium() ? (
-            <View style={styles.premiumActiveContainer}>
-              <IconSymbol name="checkmark.circle.fill" size={28} color="#34C759" />
-              <ThemedText style={styles.premiumActiveText}>
-                現在のプラン: プレミアム
-              </ThemedText>
-            </View>
-          ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.priceCard,
+                    styles.priceCardHighlight,
+                    { backgroundColor: cardBg },
+                  ]}
+                  onPress={() => {
+                    if (configured && packages.length > 0) {
+                      const annual = packages.find((p: { packageType: string }) => p.packageType === 'ANNUAL');
+                      if (annual) handlePurchase(annual);
+                    }
+                  }}
+                  disabled={isPurchasing || !(configured && packages.length > 0)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.saveBadge}>
+                    <ThemedText style={styles.saveBadgeText}>
+                      {savingsPercent}%お得
+                    </ThemedText>
+                  </View>
+                  <ThemedText style={[styles.priceLabel, { color: colors.textSecondary }]}>
+                    年額プラン
+                  </ThemedText>
+                  <View style={styles.priceAmountRow}>
+                    <ThemedText type="title" style={styles.priceAmount}>
+                      {annualPkg?.product?.priceString ?? `¥${YEARLY_PRICE.toLocaleString()}`}
+                    </ThemedText>
+                    <ThemedText style={[styles.pricePeriod, { color: colors.textSecondary }]}>
+                      /年
+                    </ThemedText>
+                  </View>
+                  <ThemedText style={[styles.priceNote, { color: '#34C759' }]}>
+                    月あたり¥{monthlyPerYear.toLocaleString()}
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              {/* CTA */}
+              <TouchableOpacity
+                style={[
+                  styles.subscribeButton,
+                  (isPurchasing || isRestoring) && styles.buttonDisabled,
+                ]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (configured && packages.length > 0) {
+                    const annual = packages.find((p: { packageType: string }) => p.packageType === 'ANNUAL');
+                    handlePurchase(annual ?? packages[0]);
+                  } else {
+                    Alert.alert(
+                      'サブスクリプション',
+                      'App Store での課金準備が完了していません。アプリを再起動するか、しばらくしてからお試しください。',
+                    );
+                  }
+                }}
+                disabled={isPurchasing || isRestoring}
+              >
+                {isPurchasing ? (
+                  <ActivityIndicator color="#1A1A1A" />
+                ) : (
+                  <ThemedText style={styles.subscribeButtonText}>
+                    サブスクリプションに登録
+                  </ThemedText>
+                )}
+              </TouchableOpacity>
+
+              {/* Restore */}
+              <TouchableOpacity
+                style={styles.restoreButton}
+                onPress={() => {
+                  if (configured) {
+                    handleRestore();
+                  } else {
+                    Alert.alert(
+                      'サブスクリプション',
+                      'App Store での課金準備が完了していません。アプリを再起動するか、しばらくしてからお試しください。',
+                    );
+                  }
+                }}
+                disabled={isRestoring}
+                activeOpacity={0.6}
+              >
+                {isRestoring ? (
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                ) : (
+                  <ThemedText style={[styles.restoreButtonText, { color: colors.textSecondary }]}>
+                    購入を復元する
+                  </ThemedText>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Manage subscription (for subscribed users) */}
+          {isSubscribed() && (
             <TouchableOpacity
-              style={styles.upgradeButton}
-              activeOpacity={0.8}
-              onPress={handleUpgrade}
+              style={[styles.manageButton, { backgroundColor: cardBg }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                const url = Platform.select({
+                  ios: 'https://apps.apple.com/account/subscriptions',
+                  android: 'https://play.google.com/store/account/subscriptions',
+                  default: '',
+                });
+                if (url) Linking.openURL(url);
+              }}
             >
-              <IconSymbol name="crown.fill" size={20} color="#FFFFFF" />
-              <ThemedText style={styles.upgradeButtonText}>
-                プレミアムにアップグレード
+              <IconSymbol name="gearshape.fill" size={18} color={colors.tint} />
+              <ThemedText style={[styles.manageButtonText, { color: colors.tint }]}>
+                サブスクリプションを管理
               </ThemedText>
+              <IconSymbol name="chevron.right" size={14} color={colors.icon} />
             </TouchableOpacity>
+          )}
+
+          {/* Info */}
+          {currentPlan === 'trial' && (
+            <View style={[styles.infoCard, { backgroundColor: cardBg }]}>
+              <IconSymbol name="info.circle.fill" size={20} color={colors.tint} />
+              <ThemedText style={[styles.infoText, { color: colors.textSecondary }]}>
+                無料トライアル中です（残り{getTrialDaysRemaining()}日）。トライアル終了後、自動的に有料サブスクリプションに移行します。キャンセルはApp Storeの設定から行えます。
+              </ThemedText>
+            </View>
+          )}
+
+          {/* Apple subscription notice */}
+          {!isSubscribed() && (
+            <ThemedText style={[styles.subscriptionNotice, { color: colors.icon }]}>
+              サブスクリプションは確認後にApple IDアカウントに請求されます。現在の期間が終了する24時間前までにキャンセルしない限り、自動更新されます。サブスクリプション管理・キャンセルはApple IDの設定から行えます。
+            </ThemedText>
           )}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Styles                                                                     */
-/* -------------------------------------------------------------------------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -260,17 +367,17 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  /* Current plan */
-  currentPlanContainer: {
+  /* Status */
+  statusContainer: {
     alignItems: 'center',
     marginTop: 24,
     marginBottom: 8,
   },
-  currentPlanLabel: {
+  statusLabel: {
     fontSize: 14,
     marginBottom: 10,
   },
-  largeBadge: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -278,17 +385,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 10,
   },
-  largeBadgeText: {
-    fontSize: 22,
+  statusBadgeText: {
+    fontSize: 20,
     fontWeight: '800',
   },
-  premiumCheck: {
+  activeNote: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 12,
     gap: 6,
   },
-  premiumCheckText: {
+  activeNoteText: {
     fontSize: 14,
     color: '#34C759',
     fontWeight: '500',
@@ -318,33 +425,21 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  /* Table */
-  tableHeader: {
+  /* Features */
+  featureRow: {
     flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  featureRowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
   },
-  tableHeaderCell: {
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  tableCell: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  featureCol: {
-    flex: 2,
-  },
-  planCol: {
-    flex: 2,
-    textAlign: 'center',
+  featureText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
 
   /* Pricing */
@@ -405,7 +500,7 @@ const styles = StyleSheet.create({
   },
 
   /* CTA */
-  upgradeButton: {
+  subscribeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -420,23 +515,67 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  upgradeButtonText: {
+  subscribeButtonText: {
     color: '#1A1A1A',
     fontSize: 17,
     fontWeight: '700',
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
 
-  /* Premium active */
-  premiumActiveContainer: {
+  /* Restore */
+  restoreButton: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 10,
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  /* Manage */
+  manageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 28,
-    gap: 8,
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 14,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  premiumActiveText: {
-    fontSize: 17,
+  manageButtonText: {
+    flex: 1,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#34C759',
+  },
+
+  /* Info card */
+  infoCard: {
+    flexDirection: 'row',
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+
+  /* Subscription notice */
+  subscriptionNotice: {
+    fontSize: 11,
+    lineHeight: 17,
+    textAlign: 'center',
+    marginTop: 20,
+    paddingHorizontal: 8,
   },
 });

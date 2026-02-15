@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type {
   RecipientSettings,
   ToneSettings,
@@ -6,8 +7,10 @@ import type {
   PurposeCategory,
   GeneratedMail,
   MailHistoryItem,
+  Attachment,
   GenerationMode,
 } from '@/types/mail';
+import { zustandStorage } from '@/lib/storage';
 
 type MailState = {
   // Current creation state
@@ -18,6 +21,17 @@ type MailState = {
   tone: ToneSettings;
   additionalInfo: AdditionalInfo;
   templateId: string | null;
+
+  // Recipient info for sending
+  recipientName: string;
+  recipientEmail: string;
+
+  // CC / BCC
+  cc: string[];
+  bcc: string[];
+
+  // Attachments
+  attachments: Attachment[];
 
   // Generated result
   generatedMail: GeneratedMail | null;
@@ -34,9 +48,20 @@ type MailState = {
   setTone: (tone: Partial<ToneSettings>) => void;
   setAdditionalInfo: (info: Partial<AdditionalInfo>) => void;
   setTemplateId: (id: string | null) => void;
+  setRecipientInfo: (name: string, email: string) => void;
+  addCc: (email: string) => void;
+  removeCc: (email: string) => void;
+  addBcc: (email: string) => void;
+  removeBcc: (email: string) => void;
+  addAttachment: (attachment: Attachment) => void;
+  removeAttachment: (id: string) => void;
+  clearAttachments: () => void;
   setGeneratedMail: (mail: GeneratedMail | null) => void;
   setIsGenerating: (v: boolean) => void;
   addHistory: (item: MailHistoryItem) => void;
+  removeHistory: (id: string) => void;
+  updateHistoryStatus: (id: string, status: MailHistoryItem['status']) => void;
+  updateHistory: (id: string, updates: Partial<Omit<MailHistoryItem, 'id'>>) => void;
   resetCreation: () => void;
 };
 
@@ -62,42 +87,119 @@ const INITIAL_CREATION_STATE = {
   tone: DEFAULT_TONE,
   additionalInfo: DEFAULT_ADDITIONAL_INFO,
   templateId: null,
+  recipientName: '',
+  recipientEmail: '',
+  cc: [],
+  bcc: [],
+  attachments: [],
   generatedMail: null,
   isGenerating: false,
 };
 
-export const useMailStore = create<MailState>()((set) => ({
-  ...INITIAL_CREATION_STATE,
-  history: [],
+export const useMailStore = create<MailState>()(
+  persist(
+    (set) => ({
+      ...INITIAL_CREATION_STATE,
+      history: [],
 
-  setMode: (mode) => set({ mode }),
+      setMode: (mode) => set({ mode }),
 
-  setRecipient: (recipient) => set({ recipient }),
+      setRecipient: (recipient) => set({ recipient }),
 
-  setPurposeCategory: (category) => set({ purposeCategory: category }),
+      setPurposeCategory: (category) => set({ purposeCategory: category }),
 
-  setSituation: (situation) => set({ situation }),
+      setSituation: (situation) => set({ situation }),
 
-  setTone: (tone) =>
-    set((state) => ({
-      tone: { ...state.tone, ...tone },
-    })),
+      setTone: (tone) =>
+        set((state) => ({
+          tone: { ...state.tone, ...tone },
+        })),
 
-  setAdditionalInfo: (info) =>
-    set((state) => ({
-      additionalInfo: { ...state.additionalInfo, ...info },
-    })),
+      setAdditionalInfo: (info) =>
+        set((state) => ({
+          additionalInfo: { ...state.additionalInfo, ...info },
+        })),
 
-  setTemplateId: (id) => set({ templateId: id }),
+      setTemplateId: (id) => set({ templateId: id }),
 
-  setGeneratedMail: (mail) => set({ generatedMail: mail }),
+      setRecipientInfo: (name, email) =>
+        set({ recipientName: name, recipientEmail: email }),
 
-  setIsGenerating: (v) => set({ isGenerating: v }),
+      addCc: (email) =>
+        set((state) => ({
+          cc: state.cc.includes(email) ? state.cc : [...state.cc, email],
+        })),
 
-  addHistory: (item) =>
-    set((state) => ({
-      history: [item, ...state.history],
-    })),
+      removeCc: (email) =>
+        set((state) => ({
+          cc: state.cc.filter((e) => e !== email),
+        })),
 
-  resetCreation: () => set(INITIAL_CREATION_STATE),
-}));
+      addBcc: (email) =>
+        set((state) => ({
+          bcc: state.bcc.includes(email) ? state.bcc : [...state.bcc, email],
+        })),
+
+      removeBcc: (email) =>
+        set((state) => ({
+          bcc: state.bcc.filter((e) => e !== email),
+        })),
+
+      addAttachment: (attachment) =>
+        set((state) => ({
+          attachments: [...state.attachments, attachment],
+        })),
+
+      removeAttachment: (id) =>
+        set((state) => ({
+          attachments: state.attachments.filter((a) => a.id !== id),
+        })),
+
+      clearAttachments: () => set({ attachments: [] }),
+
+      setGeneratedMail: (mail) => set({ generatedMail: mail }),
+
+      setIsGenerating: (v) => set({ isGenerating: v }),
+
+      addHistory: (item) =>
+        set((state) => ({
+          history: [item, ...state.history],
+        })),
+
+      removeHistory: (id) =>
+        set((state) => ({
+          history: state.history.filter((h) => h.id !== id),
+        })),
+
+      updateHistoryStatus: (id, status) =>
+        set((state) => ({
+          history: state.history.map((h) =>
+            h.id === id ? { ...h, status } : h,
+          ),
+        })),
+
+      updateHistory: (id, updates) =>
+        set((state) => ({
+          history: state.history.map((h) =>
+            h.id === id ? { ...h, ...updates } : h,
+          ),
+        })),
+
+      resetCreation: () => set(INITIAL_CREATION_STATE),
+    }),
+    {
+      name: 'mail-storage',
+      storage: zustandStorage,
+      partialize: (state) => ({ history: state.history }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.history) {
+          state.history = state.history.map((h) => ({
+            ...h,
+            createdAt: new Date(h.createdAt),
+            sentAt: h.sentAt ? new Date(h.sentAt) : undefined,
+          }));
+        }
+      },
+    },
+  ),
+);

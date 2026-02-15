@@ -103,39 +103,74 @@ No test framework is currently configured.
 
 Routes live in `app/`. The navigation hierarchy:
 
-- `app/_layout.tsx` — Root Stack navigator with theme provider (light/dark from system)
-- `app/(tabs)/_layout.tsx` — Bottom tab navigator (Home + Explore tabs)
+- `app/_layout.tsx` — Root Stack navigator with theme provider, RevenueCat initialization
+- `app/(tabs)/_layout.tsx` — Bottom tab navigator (Home, 履歴, 連絡先, 設定)
 - `app/(tabs)/index.tsx` — Home tab
-- `app/(tabs)/explore.tsx` — Explore tab
-- `app/modal.tsx` — Modal screen presented over stack
+- `app/(tabs)/history.tsx` — 履歴一覧
+- `app/(tabs)/contacts.tsx` — 連絡先管理
+- `app/(tabs)/settings.tsx` — 設定
+- `app/create/simple.tsx` — かんたん作成
+- `app/create/detailed.tsx` — こだわり作成
+- `app/create/template.tsx` — テンプレートから作成
+- `app/templates/index.tsx` — テンプレート一覧
+- `app/preview.tsx` — メールプレビュー・編集・送信
+- `app/history/detail.tsx` — 履歴詳細（全文表示・再利用・削除・共有・コピー）
+- `app/settings/account.tsx` — アカウント管理（Gmail OAuth連携対応）
+- `app/settings/plan.tsx` — プラン・課金（RevenueCat連携対応）
+- `app/settings/privacy.tsx` — プライバシーポリシー
+- `app/settings/presets.tsx` — プリセット管理（準備中）
+- `app/settings/learning-data.tsx` — 学習データ管理（準備中）
 
-Typed routes are enabled (`experiments.typedRoutes` in app.json), so route names are type-checked.
+### State Management (Zustand)
+
+- `store/use-auth-store.ts` — ユーザー認証、メールアカウント管理、月次クォータ
+- `store/use-mail-store.ts` — メール作成状態、履歴管理（CRUD）
+- `store/use-contact-store.ts` — 連絡先CRUD
+- `store/use-plan-store.ts` — プラン状態、RevenueCat同期
+
+### Lib (Business Logic)
+
+- `lib/mail-generator.ts` — AI メール生成（Supabase Edge Function 経由 OpenAI GPT）
+- `lib/mail-generator.mock.ts` — モックメール生成
+- `lib/mail-sender.ts` — メール送信（Gmail API 対応、モックフォールバック）
+- `lib/google-auth.ts` — Google OAuth 2.0 認証（expo-auth-session）
+- `lib/purchases.ts` — RevenueCat 課金管理
+- `lib/templates.ts` — テンプレートデータ管理
+- `lib/api.ts` — API クライアント
+- `lib/supabase.ts` — Supabase クライアント
+
+### Supabase Edge Functions
+
+- `supabase/functions/generate-mail/` — OpenAI GPT でメール生成
+- `supabase/functions/send-mail/` — Gmail API 経由でメール送信
 
 ### Theming
 
-- `constants/theme.ts` — Defines `Colors` (light/dark palettes) and `Fonts` (platform-specific font families)
-- `hooks/use-color-scheme.ts` / `.web.ts` — Platform-specific color scheme detection
-- `hooks/use-theme-color.ts` — Resolves a color value based on current theme
+- `constants/theme.ts` — Colors (light/dark), Fonts (platform-specific)
+- `hooks/use-color-scheme.ts` / `.web.ts` — Platform-specific color scheme
 - `components/themed-text.tsx` / `themed-view.tsx` — Theme-aware base components
-
-### Platform-specific files
-
-Uses React Native's `.ios.tsx` / `.web.ts` suffix convention:
-- `components/ui/icon-symbol.ios.tsx` — SF Symbols on iOS, Material Icons elsewhere
-- `hooks/use-color-scheme.web.ts` — Web-specific color scheme hook
 
 ### Key patterns
 
-- Animations use `react-native-reanimated` (v4) — see `hello-wave.tsx`, `parallax-scroll-view.tsx`
-- `HapticTab` component provides iOS haptic feedback on tab press
-- `ExternalLink` opens URLs via `expo-web-browser` on native, standard anchor on web
-- Path alias: `@/` maps to project root (configured in tsconfig.json)
+- Path alias: `@/` maps to project root
+- `HapticTab` component provides iOS haptic feedback
+- Animations use `react-native-reanimated` (v4)
+- OAuth tokens stored in `expo-secure-store`
+- RevenueCat for IAP, falls back to mock when API key not set
+- Gmail OAuth falls back to mock when Google Client ID not set
 
-### Experimental features enabled
+### Environment Variables
 
-- React Compiler (`experiments.reactCompiler` in app.json)
-- New Architecture (`newArchEnabled: true`)
+```
+EXPO_PUBLIC_SUPABASE_URL          — Supabase project URL
+EXPO_PUBLIC_SUPABASE_ANON_KEY     — Supabase anonymous key
+EXPO_PUBLIC_USE_MOCK_AI           — "true" to use mock AI generation
+EXPO_PUBLIC_GOOGLE_CLIENT_ID      — Google OAuth Client ID (optional)
+EXPO_PUBLIC_REVENUECAT_IOS_KEY    — RevenueCat iOS API key (optional)
+EXPO_PUBLIC_REVENUECAT_ANDROID_KEY — RevenueCat Android API key (optional)
+EXPO_PUBLIC_SENTRY_DSN             — Sentry DSN for crash reporting (optional)
+```
 
 ## Tech stack summary
 
-Expo 54 | React 19 | React Native 0.81 | Expo Router 6 | React Navigation 7 | Reanimated 4 | TypeScript 5.9 (strict) | ESLint with expo config
+Expo 54 | React 19 | React Native 0.81 | Expo Router 6 | React Navigation 7 | Reanimated 4 | Zustand 5 | Supabase | RevenueCat | Sentry | TypeScript 5.9 (strict) | ESLint with expo config

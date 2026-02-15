@@ -1,86 +1,107 @@
 import {
   FlatList,
-  SafeAreaView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Colors } from '@/constants/theme';
+import { STATUS_CONFIG, formatRelativeDate } from '@/constants/mail-status';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMailStore } from '@/store/use-mail-store';
 import type { MailHistoryItem } from '@/types';
 
-const STATUS_CONFIG = {
-  draft: { label: '下書き', color: '#8E8E93' },
-  generated: { label: '生成済み', color: '#007AFF' },
-  sent: { label: '送信済み', color: '#34C759' },
-} as const;
-
-function formatDate(date: Date): string {
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${year}/${month}/${day} ${hours}:${minutes}`;
-}
-
 function HistoryItem({
   item,
-  cardBackground,
+  colors,
+  onPress,
 }: {
   item: MailHistoryItem;
-  cardBackground: string;
+  colors: (typeof Colors)['light'];
+  onPress: () => void;
 }) {
   const statusConfig = STATUS_CONFIG[item.status];
 
   return (
     <TouchableOpacity
-      style={[styles.historyItem, { backgroundColor: cardBackground }]}
-      activeOpacity={0.7}
+      style={[
+        styles.historyItem,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+      ]}
+      activeOpacity={0.6}
+      onPress={onPress}
     >
-      <View style={styles.historyItemHeader}>
-        <ThemedText
-          type="defaultSemiBold"
-          style={styles.subject}
-          numberOfLines={1}
-        >
-          {item.subject}
-        </ThemedText>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: statusConfig.color + '20' },
-          ]}
-        >
+      {/* Left accent */}
+      <View style={[styles.accentBar, { backgroundColor: statusConfig.color }]} />
+
+      <View style={styles.itemContent}>
+        {/* Header row */}
+        <View style={styles.historyItemHeader}>
           <ThemedText
-            style={[styles.statusText, { color: statusConfig.color }]}
+            type="defaultSemiBold"
+            style={styles.subject}
+            numberOfLines={1}
           >
-            {statusConfig.label}
+            {item.subject}
+          </ThemedText>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusConfig.color + '15' },
+            ]}
+          >
+            <IconSymbol
+              name={statusConfig.icon}
+              size={11}
+              color={statusConfig.color}
+            />
+            <ThemedText
+              style={[styles.statusText, { color: statusConfig.color }]}
+            >
+              {statusConfig.label}
+            </ThemedText>
+          </View>
+        </View>
+
+        {/* Body preview */}
+        <ThemedText
+          style={[styles.bodyPreview, { color: colors.textSecondary }]}
+          numberOfLines={2}
+        >
+          {item.body}
+        </ThemedText>
+
+        {/* Footer */}
+        <View style={styles.itemFooter}>
+          <ThemedText style={[styles.recipientName, { color: colors.icon }]}>
+            {item.recipientName}
+          </ThemedText>
+          <ThemedText style={[styles.dateText, { color: colors.icon }]}>
+            {formatRelativeDate(item.createdAt)}
           </ThemedText>
         </View>
       </View>
-      <ThemedText style={styles.recipientName} numberOfLines={1}>
-        宛先: {item.recipientName}
-      </ThemedText>
-      <ThemedText style={styles.dateText}>
-        {formatDate(item.createdAt)}
-      </ThemedText>
     </TouchableOpacity>
   );
 }
 
-function EmptyState() {
+function EmptyState({ colors }: { colors: (typeof Colors)['light'] }) {
   return (
     <View style={styles.emptyState}>
-      <ThemedText style={styles.emptyIcon}>📭</ThemedText>
+      <View style={[styles.emptyIconContainer, { backgroundColor: colors.surfaceSecondary }]}>
+        <IconSymbol name="clock.fill" size={40} color={colors.icon} />
+      </View>
       <ThemedText style={styles.emptyText}>
         まだメール履歴がありません
       </ThemedText>
-      <ThemedText style={styles.emptySubtext}>
+      <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
         メールを作成すると、ここに履歴が表示されます
       </ThemedText>
     </View>
@@ -89,30 +110,29 @@ function EmptyState() {
 
 export default function HistoryScreen() {
   const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
   const history = useMailStore((s) => s.history);
-
-  const cardBackground = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
+  const router = useRouter();
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <ThemedText type="title">履歴</ThemedText>
-        </View>
         <FlatList
           data={history}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <HistoryItem item={item} cardBackground={cardBackground} />
+            <HistoryItem
+              item={item}
+              colors={colors}
+              onPress={() => router.push({ pathname: '/history/detail', params: { id: item.id } })}
+            />
           )}
           contentContainerStyle={[
             styles.listContent,
             history.length === 0 && styles.listContentEmpty,
           ]}
-          ListEmptyComponent={EmptyState}
+          ListEmptyComponent={<EmptyState colors={colors} />}
           showsVerticalScrollIndicator={false}
         />
-      </SafeAreaView>
     </ThemedView>
   );
 }
@@ -121,31 +141,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingBottom: 40,
-    gap: 12,
+    gap: 10,
   },
   listContentEmpty: {
     flex: 1,
     justifyContent: 'center',
   },
   historyItem: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  accentBar: {
+    width: 4,
+  },
+  itemContent: {
+    flex: 1,
     padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
   historyItemHeader: {
     flexDirection: 'row',
@@ -156,44 +172,61 @@ const styles = StyleSheet.create({
   subject: {
     flex: 1,
     fontSize: 16,
-    marginRight: 8,
+    fontWeight: '700',
+    marginRight: 10,
   },
   statusBadge: {
-    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  bodyPreview: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 10,
+  },
+  itemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   recipientName: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginBottom: 4,
+    fontSize: 12,
+    fontWeight: '500',
   },
   dateText: {
     fontSize: 12,
-    opacity: 0.5,
+    fontWeight: '500',
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
-    opacity: 0.6,
     textAlign: 'center',
+    lineHeight: 20,
   },
 });

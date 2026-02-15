@@ -8,18 +8,23 @@ import {
   Alert,
   ActivityIndicator,
   useColorScheme,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ContactPickerModal } from '@/components/contact-picker-modal';
 import { useMailStore } from '@/store/use-mail-store';
-import { useAuthStore } from '@/store/use-auth-store';
+import { usePlanStore } from '@/store/use-plan-store';
 import { SITUATIONS, type SituationItem } from '@/constants/situations';
 import { RELATIONSHIP_TONE_MAP } from '@/constants/tone-mapping';
 import { Colors } from '@/constants/theme';
 import { generateMail } from '@/lib/mail-generator';
-import type { PurposeCategory, Relationship } from '@/types';
+import { useLearningStore } from '@/store/use-learning-store';
+import { buildLearningContext } from '@/lib/learning-analyzer';
+import type { Contact, PurposeCategory, Relationship } from '@/types';
 
 const PURPOSE_CATEGORIES: PurposeCategory[] = [
   'ビジネス',
@@ -42,11 +47,9 @@ export default function SimpleCreateScreen() {
     setMode,
     setRecipient,
     setTone,
+    setRecipientInfo,
     isGenerating,
   } = useMailStore();
-  const canGenerate = useAuthStore((s) => s.canGenerate);
-  const incrementDailyCount = useAuthStore((s) => s.incrementDailyCount);
-
   // Local state
   const [recipientName, setRecipientName] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
@@ -54,13 +57,15 @@ export default function SimpleCreateScreen() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<SituationItem | null>(null);
   const [selectedSituation, setSelectedSituation] = useState<string | null>(null);
   const [keyPoints, setKeyPoints] = useState('');
+  const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
 
   const handleSelectFromContacts = useCallback(() => {
-    Alert.alert(
-      '連絡先から選択',
-      'この機能は今後のアップデートで実装予定です。',
-      [{ text: 'OK' }],
-    );
+    setIsContactPickerVisible(true);
+  }, []);
+
+  const handleContactSelected = useCallback((contact: Contact) => {
+    setRecipientName(contact.name);
+    setRecipientEmail(contact.email);
   }, []);
 
   const handleCategorySelect = useCallback((category: PurposeCategory) => {
@@ -84,11 +89,12 @@ export default function SimpleCreateScreen() {
       return;
     }
 
+    const { canGenerate, isSubscribed } = usePlanStore.getState();
     if (!canGenerate()) {
-      Alert.alert(
-        '生成制限',
-        '本日の無料生成回数の上限に達しました。プレミアムプランにアップグレードすると無制限に生成できます。',
-      );
+      const message = isSubscribed()
+        ? '今月の生成回数上限に達しました。来月まで少々お待ちください。'
+        : '本日の生成回数上限に達しました。サブスクリプションに登録すると月500回まで生成できます。';
+      Alert.alert('生成回数上限', message);
       return;
     }
 
@@ -97,6 +103,7 @@ export default function SimpleCreateScreen() {
     setPurposeCategory(selectedCategory);
     setSituation(selectedSituation);
     setAdditionalInfo({ keyPoints });
+    setRecipientInfo(recipientName, recipientEmail);
 
     // Auto-set recipient and tone for simple mode
     const defaultRecipient = {
@@ -109,6 +116,8 @@ export default function SimpleCreateScreen() {
 
     try {
       setIsGenerating(true);
+      const learningProfile = useLearningStore.getState().profile;
+      const learningContext = learningProfile ? buildLearningContext(learningProfile) : undefined;
       const mail = await generateMail({
         recipient: defaultRecipient,
         purposeCategory: selectedCategory,
@@ -120,9 +129,10 @@ export default function SimpleCreateScreen() {
           urgency: '通常',
         },
         additionalInfo: { keyPoints },
+        learningContext,
       });
       setGeneratedMail(mail);
-      incrementDailyCount();
+      usePlanStore.getState().incrementGenerationCount();
       router.push('/preview');
     } catch {
       Alert.alert('エラー', 'メールの生成に失敗しました。もう一度お試しください。');
@@ -133,16 +143,17 @@ export default function SimpleCreateScreen() {
     selectedCategory,
     selectedSituation,
     keyPoints,
-    canGenerate,
+    recipientName,
+    recipientEmail,
     setMode,
     setPurposeCategory,
     setSituation,
     setAdditionalInfo,
     setRecipient,
     setTone,
+    setRecipientInfo,
     setIsGenerating,
     setGeneratedMail,
-    incrementDailyCount,
     router,
   ]);
 
@@ -150,47 +161,68 @@ export default function SimpleCreateScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {/* Step indicator */}
         <View style={styles.stepIndicator}>
           <ThemedText type="subtitle" style={styles.stepTitle}>
             かんたん作成
           </ThemedText>
-          <ThemedText style={[styles.stepDescription, { color: colors.icon }]}>
+          <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
             目的を選ぶだけでAIがメールを作成します
           </ThemedText>
         </View>
 
         {/* Section 1: 送信先 */}
-        <View style={styles.section}>
-          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-            送信先
-          </ThemedText>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.stepCircle, { backgroundColor: colors.tint }]}>
+              <ThemedText style={styles.stepCircleText}>1</ThemedText>
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+              送信先
+            </ThemedText>
+          </View>
+
           <TextInput
             style={[
               styles.textInput,
               {
                 color: colors.text,
-                borderColor: colors.icon,
-                backgroundColor: colorScheme === 'dark' ? '#1e2022' : '#f8f9fa',
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
               },
             ]}
             placeholder="お名前"
             placeholderTextColor={colors.icon}
             value={recipientName}
             onChangeText={setRecipientName}
+            maxLength={50}
           />
           <TextInput
             style={[
               styles.textInput,
               {
                 color: colors.text,
-                borderColor: colors.icon,
-                backgroundColor: colorScheme === 'dark' ? '#1e2022' : '#f8f9fa',
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
               },
             ]}
             placeholder="メールアドレス"
@@ -199,10 +231,12 @@ export default function SimpleCreateScreen() {
             onChangeText={setRecipientEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            maxLength={254}
           />
           <TouchableOpacity
             style={[styles.contactButton, { borderColor: colors.tint }]}
             onPress={handleSelectFromContacts}
+            activeOpacity={0.7}
           >
             <ThemedText style={[styles.contactButtonText, { color: colors.tint }]}>
               連絡先から選択
@@ -211,10 +245,23 @@ export default function SimpleCreateScreen() {
         </View>
 
         {/* Section 2: メールの目的 */}
-        <View style={styles.section}>
-          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-            メールの目的
-          </ThemedText>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.stepCircle, { backgroundColor: colors.tint }]}>
+              <ThemedText style={styles.stepCircleText}>2</ThemedText>
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+              メールの目的
+            </ThemedText>
+          </View>
 
           {/* Category chips */}
           <ScrollView
@@ -223,73 +270,81 @@ export default function SimpleCreateScreen() {
             style={styles.chipScrollView}
             contentContainerStyle={styles.chipContainer}
           >
-            {PURPOSE_CATEGORIES.map((category) => (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.chip,
-                  selectedCategory === category
-                    ? { backgroundColor: colors.tint }
-                    : {
-                        backgroundColor: colorScheme === 'dark' ? '#2a2d2f' : '#f0f0f0',
-                        borderColor: colors.icon,
-                        borderWidth: 1,
-                      },
-                ]}
-                onPress={() => handleCategorySelect(category)}
-              >
-                <ThemedText
+            {PURPOSE_CATEGORIES.map((category) => {
+              const isSelected = selectedCategory === category;
+              return (
+                <TouchableOpacity
+                  key={category}
                   style={[
-                    styles.chipText,
-                    selectedCategory === category
-                      ? { color: '#fff' }
-                      : { color: colors.text },
+                    styles.chip,
+                    isSelected
+                      ? { backgroundColor: colors.tint }
+                      : {
+                          backgroundColor: colors.surfaceSecondary,
+                          borderColor: colors.border,
+                          borderWidth: 1,
+                        },
                   ]}
+                  onPress={() => handleCategorySelect(category)}
+                  activeOpacity={0.7}
                 >
-                  {category}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
+                  <ThemedText
+                    style={[
+                      styles.chipText,
+                      isSelected
+                        ? { color: '#FFFFFF' }
+                        : { color: colors.text },
+                    ]}
+                  >
+                    {isSelected ? '  ' : ''}{category}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {/* Subcategory list */}
           {selectedCategory && subcategories.length > 0 && (
             <View style={styles.subcategoryContainer}>
               <ThemedText
-                style={[styles.subcategoryLabel, { color: colors.icon }]}
+                style={[styles.subcategoryLabel, { color: colors.textSecondary }]}
               >
                 カテゴリを選択
               </ThemedText>
               <View style={styles.subcategoryList}>
-                {subcategories.map((sub) => (
-                  <TouchableOpacity
-                    key={sub.label}
-                    style={[
-                      styles.subcategoryItem,
-                      selectedSubcategory?.label === sub.label
-                        ? {
-                            backgroundColor: colors.tint + '20',
-                            borderColor: colors.tint,
-                          }
-                        : {
-                            backgroundColor: colorScheme === 'dark' ? '#2a2d2f' : '#f8f9fa',
-                            borderColor: colors.icon + '40',
-                          },
-                    ]}
-                    onPress={() => handleSubcategorySelect(sub)}
-                  >
-                    <ThemedText
+                {subcategories.map((sub) => {
+                  const isSelected = selectedSubcategory?.label === sub.label;
+                  return (
+                    <TouchableOpacity
+                      key={sub.label}
                       style={[
-                        styles.subcategoryItemText,
-                        selectedSubcategory?.label === sub.label
-                          ? { color: colors.tint, fontWeight: '600' }
-                          : {},
+                        styles.subcategoryItem,
+                        isSelected
+                          ? {
+                              backgroundColor: colors.tint + '18',
+                              borderColor: colors.tint,
+                            }
+                          : {
+                              backgroundColor: colors.surfaceSecondary,
+                              borderColor: colors.border,
+                            },
                       ]}
+                      onPress={() => handleSubcategorySelect(sub)}
+                      activeOpacity={0.7}
                     >
-                      {sub.label}
-                    </ThemedText>
-                  </TouchableOpacity>
-                ))}
+                      <ThemedText
+                        style={[
+                          styles.subcategoryItemText,
+                          isSelected
+                            ? { color: colors.tint, fontWeight: '600' }
+                            : { color: colors.text },
+                        ]}
+                      >
+                        {isSelected ? '  ' : ''}{sub.label}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           )}
@@ -298,55 +353,77 @@ export default function SimpleCreateScreen() {
           {selectedSubcategory && (
             <View style={styles.situationContainer}>
               <ThemedText
-                style={[styles.subcategoryLabel, { color: colors.icon }]}
+                style={[styles.subcategoryLabel, { color: colors.textSecondary }]}
               >
                 具体的なシチュエーションを選択
               </ThemedText>
               <View style={styles.situationList}>
-                {selectedSubcategory.situations.map((situation) => (
-                  <TouchableOpacity
-                    key={situation}
-                    style={[
-                      styles.situationItem,
-                      selectedSituation === situation
-                        ? { backgroundColor: colors.tint, borderColor: colors.tint }
-                        : {
-                            backgroundColor: colorScheme === 'dark' ? '#2a2d2f' : '#f8f9fa',
-                            borderColor: colors.icon + '40',
-                          },
-                    ]}
-                    onPress={() => handleSituationSelect(situation)}
-                  >
-                    <ThemedText
+                {selectedSubcategory.situations.map((situation) => {
+                  const isSelected = selectedSituation === situation;
+                  return (
+                    <TouchableOpacity
+                      key={situation}
                       style={[
-                        styles.situationItemText,
-                        selectedSituation === situation
-                          ? { color: '#fff', fontWeight: '600' }
-                          : {},
+                        styles.situationItem,
+                        isSelected
+                          ? { backgroundColor: colors.tint, borderColor: colors.tint }
+                          : {
+                              backgroundColor: colors.surfaceSecondary,
+                              borderColor: colors.border,
+                            },
                       ]}
+                      onPress={() => handleSituationSelect(situation)}
+                      activeOpacity={0.7}
                     >
-                      {situation}
-                    </ThemedText>
-                  </TouchableOpacity>
-                ))}
+                      <ThemedText
+                        style={[
+                          styles.situationItemText,
+                          isSelected
+                            ? { color: '#FFFFFF', fontWeight: '600' }
+                            : { color: colors.text },
+                        ]}
+                      >
+                        {isSelected ? '  ' : ''}{situation}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           )}
         </View>
 
         {/* Section 3: 要点入力 */}
-        <View style={styles.section}>
-          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-            要点入力
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.stepCircle, { backgroundColor: colors.tint }]}>
+              <ThemedText style={styles.stepCircleText}>3</ThemedText>
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+              要点入力
+            </ThemedText>
+          </View>
+
+          <ThemedText style={[styles.sectionHint, { color: colors.textSecondary }]}>
+            伝えたいポイントがあれば入力してください（任意）
           </ThemedText>
+
           <TextInput
             style={[
               styles.textInput,
               styles.multilineInput,
               {
                 color: colors.text,
-                borderColor: colors.icon,
-                backgroundColor: colorScheme === 'dark' ? '#1e2022' : '#f8f9fa',
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
               },
             ]}
             placeholder="メールの要点を入力してください"
@@ -356,6 +433,7 @@ export default function SimpleCreateScreen() {
             multiline
             numberOfLines={4}
             textAlignVertical="top"
+            maxLength={1000}
           />
         </View>
 
@@ -363,7 +441,20 @@ export default function SimpleCreateScreen() {
         <TouchableOpacity
           style={[
             styles.generateButton,
-            { backgroundColor: colors.tint },
+            {
+              backgroundColor: colors.tint,
+              ...Platform.select({
+                ios: {
+                  shadowColor: colors.tint,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                },
+                android: {
+                  elevation: 6,
+                },
+              }),
+            },
             isGenerating && styles.generateButtonDisabled,
           ]}
           onPress={handleGenerate}
@@ -372,7 +463,7 @@ export default function SimpleCreateScreen() {
         >
           {isGenerating ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color="#FFFFFF" size="large" />
               <ThemedText style={styles.generateButtonText}>
                 生成中...
               </ThemedText>
@@ -384,6 +475,13 @@ export default function SimpleCreateScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
+
+      <ContactPickerModal
+        visible={isContactPickerVisible}
+        onClose={() => setIsContactPickerVisible(false)}
+        onSelect={handleContactSelected}
+      />
     </ThemedView>
   );
 }
@@ -392,87 +490,128 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 48,
   },
   stepIndicator: {
     marginBottom: 24,
   },
   stepTitle: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   stepDescription: {
     fontSize: 14,
+    lineHeight: 20,
   },
-  section: {
-    marginBottom: 24,
+  card: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  stepCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  stepCircleText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   sectionTitle: {
+    fontSize: 16,
+  },
+  sectionHint: {
+    fontSize: 13,
+    lineHeight: 18,
     marginBottom: 12,
   },
   textInput: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   multilineInput: {
-    minHeight: 100,
-    paddingTop: 12,
+    minHeight: 110,
+    paddingTop: 14,
   },
   contactButton: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     borderStyle: 'dashed',
+    marginTop: 2,
   },
   contactButtonText: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   chipScrollView: {
     marginBottom: 16,
   },
   chipContainer: {
-    gap: 8,
+    gap: 10,
     paddingVertical: 4,
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chipText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
   },
   subcategoryContainer: {
     marginBottom: 16,
   },
   subcategoryLabel: {
     fontSize: 13,
-    marginBottom: 8,
+    fontWeight: '500',
+    marginBottom: 10,
   },
   subcategoryList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   subcategoryItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   subcategoryItemText: {
     fontSize: 14,
+    lineHeight: 20,
   },
   situationContainer: {
     marginTop: 4,
@@ -480,35 +619,41 @@ const styles = StyleSheet.create({
   situationList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   situationItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   situationItemText: {
     fontSize: 14,
+    lineHeight: 20,
   },
   generateButton: {
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
+    minHeight: 56,
   },
   generateButtonDisabled: {
     opacity: 0.7,
   },
   generateButtonText: {
-    color: '#fff',
-    fontSize: 17,
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
 });

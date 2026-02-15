@@ -15,6 +15,8 @@ export type {
   MailGenerationRequest,
   GeneratedMail,
   MailHistoryItem,
+  Attachment,
+  AttachmentMeta,
   GenerationMode,
 } from './mail';
 
@@ -34,3 +36,16 @@ export type {
 export type {
   PromptTemplate,
 } from './template';
+
+export type {
+  Preset,
+} from './preset';
+
+export type {
+  Distribution,
+  PhrasePatterns,
+  MailStatistics,
+  UserStylePreferences,
+  LearningProfile,
+  LearningContext,
+} from './learning';

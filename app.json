@@ -1,17 +1,40 @@
 {
   "expo": {
-    "name": "mail-maker-app-expo-2a",
+    "name": "メールメーカー",
     "slug": "mail-maker-app-expo-2a",
     "version": "1.0.0",
+    "description": "AIがビジネスメールを自動作成。相手との関係性やメールの目的を選ぶだけで、敬語・マナーに配慮した日本語メールを瞬時に生成。Gmail連携で直接送信も可能。",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mailmakerappexpo2a",
+    "scheme": [
+      "mailmakerappexpo2a",
+      "com.googleusercontent.apps.352542622500-l8mfil77fep5b4sru9n7p6mu2prbte3r",
+      "msauth.com.mailmaker.app"
+    ],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mailmaker.app",
+      "buildNumber": "1",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          }
+        ]
+      }
     },
     "android": {
+      "package": "com.mailmaker.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -28,6 +51,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "写真を添付するために写真ライブラリへのアクセスが必要です。"
+        }
+      ],
+      "expo-apple-authentication",
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
@@ -38,11 +68,25 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ab3e4be4-ab56-4d8d-bbd8-5384e13724d4"
+      },
+      "appStoreMetadata": {
+        "primaryCategory": "BUSINESS",
+        "secondaryCategory": "PRODUCTIVITY",
+        "keywords": "メール,AI,ビジネス,自動作成,敬語,日本語,Gmail,メール作成,テンプレート,ビジネスメール",
+        "subtitle": "AIがビジネスメールを自動作成"
+      }
+    },
+    "owner": "mtmap"
   }
 }

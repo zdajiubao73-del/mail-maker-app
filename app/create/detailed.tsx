@@ -8,17 +8,23 @@ import {
   Alert,
   ActivityIndicator,
   useColorScheme,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ContactPickerModal } from '@/components/contact-picker-modal';
 import { useMailStore } from '@/store/use-mail-store';
-import { useAuthStore } from '@/store/use-auth-store';
+import { usePlanStore } from '@/store/use-plan-store';
 import { SITUATIONS, type SituationItem } from '@/constants/situations';
 import { Colors } from '@/constants/theme';
 import { generateMail } from '@/lib/mail-generator';
+import { useLearningStore } from '@/store/use-learning-store';
+import { buildLearningContext } from '@/lib/learning-analyzer';
 import type {
+  Contact,
   Relationship,
   Scope,
   PositionLevel,
@@ -79,6 +85,8 @@ const ATMOSPHERES: Atmosphere[] = [
 
 const URGENCIES: Urgency[] = ['通常', 'やや急ぎ', '至急'];
 
+const STEP_LABELS = ['相手', '目的', 'トーン', '追加'];
+
 export default function DetailedCreateScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
@@ -93,16 +101,16 @@ export default function DetailedCreateScreen() {
     setAdditionalInfo,
     setGeneratedMail,
     setIsGenerating,
+    setRecipientInfo,
     isGenerating,
     tone,
   } = useMailStore();
-  const canGenerate = useAuthStore((s) => s.canGenerate);
-  const incrementDailyCount = useAuthStore((s) => s.incrementDailyCount);
-
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
 
   // Step 1: Recipient
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
   const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
   const [selectedScope, setSelectedScope] = useState<Scope | null>(null);
   const [selectedPositionLevel, setSelectedPositionLevel] = useState<PositionLevel | null>(null);
@@ -123,6 +131,17 @@ export default function DetailedCreateScreen() {
   const [dateTime, setDateTime] = useState('');
   const [properNouns, setProperNouns] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Contact picker
+  const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
+
+  const handleContactSelected = useCallback((contact: Contact) => {
+    setRecipientName(contact.name);
+    setRecipientEmail(contact.email);
+    setSelectedRelationship(contact.relationship);
+    setSelectedScope(contact.scope);
+    setSelectedPositionLevel(contact.positionLevel);
+  }, []);
 
   const progress = currentStep / TOTAL_STEPS;
 
@@ -182,14 +201,15 @@ export default function DetailedCreateScreen() {
       setCurrentStep(2);
       return;
     }
+
+    const { canGenerate, isSubscribed } = usePlanStore.getState();
     if (!canGenerate()) {
-      Alert.alert(
-        '生成制限',
-        '本日の無料生成回数の上限に達しました。プレミアムプランにアップグレードすると無制限に生成できます。',
-      );
+      const message = isSubscribed()
+        ? '今月の生成回数上限に達しました。来月まで少々お待ちください。'
+        : '本日の生成回数上限に達しました。サブスクリプションに登録すると月500回まで生成できます。';
+      Alert.alert('生成回数上限', message);
       return;
     }
-
     const recipient = {
       relationship: selectedRelationship,
       scope: selectedScope,
@@ -217,18 +237,22 @@ export default function DetailedCreateScreen() {
     setSituation(selectedSituation);
     setTone(toneSettings);
     setAdditionalInfo(additionalInfo);
+    setRecipientInfo(recipientName, recipientEmail);
 
     try {
       setIsGenerating(true);
+      const learningProfile = useLearningStore.getState().profile;
+      const learningContext = learningProfile ? buildLearningContext(learningProfile) : undefined;
       const mail = await generateMail({
         recipient,
         purposeCategory: selectedCategory,
         situation: selectedSituation,
         tone: toneSettings,
         additionalInfo,
+        learningContext,
       });
       setGeneratedMail(mail);
-      incrementDailyCount();
+      usePlanStore.getState().incrementGenerationCount();
       router.push('/preview');
     } catch {
       Alert.alert('エラー', 'メールの生成に失敗しました。もう一度お試しください。');
@@ -249,16 +273,17 @@ export default function DetailedCreateScreen() {
     dateTime,
     properNouns,
     notes,
-    canGenerate,
+    recipientName,
+    recipientEmail,
     setMode,
     setRecipient,
     setPurposeCategory,
     setSituation,
     setTone,
     setAdditionalInfo,
+    setRecipientInfo,
     setIsGenerating,
     setGeneratedMail,
-    incrementDailyCount,
     router,
   ]);
 
@@ -280,8 +305,8 @@ export default function DetailedCreateScreen() {
               selected === item
                 ? { backgroundColor: colors.tint }
                 : {
-                    backgroundColor: colorScheme === 'dark' ? '#2a2d2f' : '#f0f0f0',
-                    borderColor: colors.icon + '60',
+                    backgroundColor: colors.surfaceSecondary,
+                    borderColor: colors.border,
                     borderWidth: 1,
                   },
             ]}
@@ -301,19 +326,147 @@ export default function DetailedCreateScreen() {
     );
   }
 
+  function renderStepIndicator() {
+    return (
+      <View style={styles.stepIndicatorContainer}>
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => {
+          const stepNum = i + 1;
+          const isCompleted = stepNum < currentStep;
+          const isCurrent = stepNum === currentStep;
+          return (
+            <View key={stepNum} style={styles.stepIndicatorItem}>
+              <View
+                style={[
+                  styles.stepDot,
+                  isCompleted && { backgroundColor: colors.tint },
+                  isCurrent && {
+                    backgroundColor: colors.tint,
+                    borderWidth: 3,
+                    borderColor: colors.tint + '40',
+                  },
+                  !isCompleted &&
+                    !isCurrent && {
+                      backgroundColor: colors.surfaceSecondary,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    },
+                ]}
+              >
+                {isCompleted ? (
+                  <ThemedText style={styles.stepDotCheckText}>
+                    {'✓'}
+                  </ThemedText>
+                ) : (
+                  <ThemedText
+                    style={[
+                      styles.stepDotNumber,
+                      isCurrent
+                        ? { color: '#fff' }
+                        : { color: colors.textSecondary },
+                    ]}
+                  >
+                    {stepNum}
+                  </ThemedText>
+                )}
+              </View>
+              <ThemedText
+                style={[
+                  styles.stepLabel,
+                  isCurrent
+                    ? { color: colors.tint, fontWeight: '600' }
+                    : isCompleted
+                      ? { color: colors.text, fontWeight: '500' }
+                      : { color: colors.textSecondary, fontWeight: '400' },
+                ]}
+              >
+                {STEP_LABELS[i]}
+              </ThemedText>
+              {i < TOTAL_STEPS - 1 && (
+                <View
+                  style={[
+                    styles.stepConnector,
+                    {
+                      backgroundColor: isCompleted
+                        ? colors.tint
+                        : colors.border,
+                    },
+                  ]}
+                />
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
+
   function renderStep1() {
     return (
-      <View>
-        <ThemedText type="subtitle" style={styles.stepTitle}>
-          送信相手の設定
-        </ThemedText>
-        <ThemedText style={[styles.stepDescription, { color: colors.icon }]}>
+      <View style={[styles.stepCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.stepTitleRow}>
+          <View style={[styles.stepNumberBadge, { backgroundColor: colors.tint + '15' }]}>
+            <ThemedText style={[styles.stepNumberBadgeText, { color: colors.tint }]}>1</ThemedText>
+          </View>
+          <ThemedText style={[styles.stepTitle, { color: colors.text }]}>
+            送信相手の設定
+          </ThemedText>
+        </View>
+        <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
           メールを送る相手との関係性を設定してください
         </ThemedText>
 
+        {/* Recipient Name & Email */}
+        <View style={styles.fieldGroup}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
+            送信先（任意）
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
+            placeholder="お名前"
+            placeholderTextColor={colors.textSecondary}
+            value={recipientName}
+            onChangeText={setRecipientName}
+            maxLength={50}
+          />
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                marginTop: 8,
+              },
+            ]}
+            placeholder="メールアドレス"
+            placeholderTextColor={colors.textSecondary}
+            value={recipientEmail}
+            onChangeText={setRecipientEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            maxLength={254}
+          />
+          <TouchableOpacity
+            style={[styles.contactButton, { borderColor: colors.tint }]}
+            onPress={() => setIsContactPickerVisible(true)}
+            activeOpacity={0.7}
+          >
+            <ThemedText style={[styles.contactButtonText, { color: colors.tint }]}>
+              連絡先から選択
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+
         {/* Relationship */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             関係性
           </ThemedText>
           {renderChipGroup(RELATIONSHIPS, selectedRelationship, setSelectedRelationship)}
@@ -321,7 +474,7 @@ export default function DetailedCreateScreen() {
 
         {/* Scope */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             範囲
           </ThemedText>
           {renderChipGroup(SCOPES, selectedScope, setSelectedScope)}
@@ -329,7 +482,7 @@ export default function DetailedCreateScreen() {
 
         {/* Position Level */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             役職レベル
           </ThemedText>
           {renderChipGroup(POSITION_LEVELS, selectedPositionLevel, setSelectedPositionLevel)}
@@ -340,17 +493,22 @@ export default function DetailedCreateScreen() {
 
   function renderStep2() {
     return (
-      <View>
-        <ThemedText type="subtitle" style={styles.stepTitle}>
-          メールの目的
-        </ThemedText>
-        <ThemedText style={[styles.stepDescription, { color: colors.icon }]}>
+      <View style={[styles.stepCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.stepTitleRow}>
+          <View style={[styles.stepNumberBadge, { backgroundColor: colors.tint + '15' }]}>
+            <ThemedText style={[styles.stepNumberBadgeText, { color: colors.tint }]}>2</ThemedText>
+          </View>
+          <ThemedText style={[styles.stepTitle, { color: colors.text }]}>
+            メールの目的
+          </ThemedText>
+        </View>
+        <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
           メールの目的を選択してください
         </ThemedText>
 
         {/* Category tabs */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             カテゴリ
           </ThemedText>
           <ScrollView
@@ -366,8 +524,8 @@ export default function DetailedCreateScreen() {
                   selectedCategory === category
                     ? { backgroundColor: colors.tint }
                     : {
-                        backgroundColor: colorScheme === 'dark' ? '#2a2d2f' : '#f0f0f0',
-                        borderColor: colors.icon + '60',
+                        backgroundColor: colors.surfaceSecondary,
+                        borderColor: colors.border,
                         borderWidth: 1,
                       },
                 ]}
@@ -391,7 +549,7 @@ export default function DetailedCreateScreen() {
         {/* Subcategory */}
         {selectedCategory && subcategories.length > 0 && (
           <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
               サブカテゴリ
             </ThemedText>
             <View style={styles.chipGroup}>
@@ -407,8 +565,8 @@ export default function DetailedCreateScreen() {
                           borderWidth: 1,
                         }
                       : {
-                          backgroundColor: colorScheme === 'dark' ? '#2a2d2f' : '#f8f9fa',
-                          borderColor: colors.icon + '40',
+                          backgroundColor: colors.surfaceSecondary,
+                          borderColor: colors.border,
                           borderWidth: 1,
                         },
                   ]}
@@ -433,7 +591,7 @@ export default function DetailedCreateScreen() {
         {/* Situation */}
         {selectedSubcategory && (
           <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
               シチュエーション
             </ThemedText>
             <View style={styles.chipGroup}>
@@ -445,8 +603,8 @@ export default function DetailedCreateScreen() {
                     selectedSituation === situation
                       ? { backgroundColor: colors.tint }
                       : {
-                          backgroundColor: colorScheme === 'dark' ? '#2a2d2f' : '#f8f9fa',
-                          borderColor: colors.icon + '40',
+                          backgroundColor: colors.surfaceSecondary,
+                          borderColor: colors.border,
                           borderWidth: 1,
                         },
                   ]}
@@ -473,17 +631,22 @@ export default function DetailedCreateScreen() {
 
   function renderStep3() {
     return (
-      <View>
-        <ThemedText type="subtitle" style={styles.stepTitle}>
-          トーン・文体
-        </ThemedText>
-        <ThemedText style={[styles.stepDescription, { color: colors.icon }]}>
+      <View style={[styles.stepCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.stepTitleRow}>
+          <View style={[styles.stepNumberBadge, { backgroundColor: colors.tint + '15' }]}>
+            <ThemedText style={[styles.stepNumberBadgeText, { color: colors.tint }]}>3</ThemedText>
+          </View>
+          <ThemedText style={[styles.stepTitle, { color: colors.text }]}>
+            トーン・文体
+          </ThemedText>
+        </View>
+        <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
           メールのトーンや文体を設定してください
         </ThemedText>
 
         {/* Honorifics Level */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             敬語レベル
           </ThemedText>
           {renderChipGroup(HONORIFICS_LEVELS, honorificsLevel, setHonorificsLevel)}
@@ -491,7 +654,7 @@ export default function DetailedCreateScreen() {
 
         {/* Mail Length */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             文章の長さ
           </ThemedText>
           {renderChipGroup(MAIL_LENGTHS, mailLength, setMailLength)}
@@ -499,7 +662,7 @@ export default function DetailedCreateScreen() {
 
         {/* Atmosphere */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             雰囲気
           </ThemedText>
           {renderChipGroup(ATMOSPHERES, atmosphere, setAtmosphere)}
@@ -507,7 +670,7 @@ export default function DetailedCreateScreen() {
 
         {/* Urgency */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             緊急度
           </ThemedText>
           {renderChipGroup(URGENCIES, urgency, setUrgency)}
@@ -521,79 +684,88 @@ export default function DetailedCreateScreen() {
       styles.textInput,
       {
         color: colors.text,
-        borderColor: colors.icon,
-        backgroundColor: colorScheme === 'dark' ? '#1e2022' : '#f8f9fa',
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
       },
     ];
 
     return (
-      <View>
-        <ThemedText type="subtitle" style={styles.stepTitle}>
-          追加情報
-        </ThemedText>
-        <ThemedText style={[styles.stepDescription, { color: colors.icon }]}>
+      <View style={[styles.stepCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.stepTitleRow}>
+          <View style={[styles.stepNumberBadge, { backgroundColor: colors.tint + '15' }]}>
+            <ThemedText style={[styles.stepNumberBadgeText, { color: colors.tint }]}>4</ThemedText>
+          </View>
+          <ThemedText style={[styles.stepTitle, { color: colors.text }]}>
+            追加情報
+          </ThemedText>
+        </View>
+        <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
           メールに含める情報を入力してください（任意）
         </ThemedText>
 
         {/* Key Points */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             要点
           </ThemedText>
           <TextInput
             style={[...inputStyle, styles.multilineInput]}
             placeholder="メールの要点を入力してください"
-            placeholderTextColor={colors.icon}
+            placeholderTextColor={colors.textSecondary}
             value={keyPoints}
             onChangeText={setKeyPoints}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
+            maxLength={1000}
           />
         </View>
 
         {/* Date Time */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             日時
           </ThemedText>
           <TextInput
             style={inputStyle}
             placeholder="例: 2月15日 14:00"
-            placeholderTextColor={colors.icon}
+            placeholderTextColor={colors.textSecondary}
             value={dateTime}
             onChangeText={setDateTime}
+            maxLength={100}
           />
         </View>
 
         {/* Proper Nouns */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             固有名詞
           </ThemedText>
           <TextInput
             style={inputStyle}
             placeholder="例: 株式会社ABC、プロジェクトX"
-            placeholderTextColor={colors.icon}
+            placeholderTextColor={colors.textSecondary}
             value={properNouns}
             onChangeText={setProperNouns}
+            maxLength={200}
           />
         </View>
 
         {/* Notes */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={styles.fieldLabel}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
             補足事項
           </ThemedText>
           <TextInput
             style={[...inputStyle, styles.multilineInput]}
             placeholder="その他、メールに含めたい情報があれば入力してください"
-            placeholderTextColor={colors.icon}
+            placeholderTextColor={colors.textSecondary}
             value={notes}
             onChangeText={setNotes}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
+            maxLength={500}
           />
         </View>
       </View>
@@ -602,17 +774,13 @@ export default function DetailedCreateScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressHeader}>
-          <ThemedText style={[styles.progressText, { color: colors.icon }]}>
-            ステップ {currentStep}/{TOTAL_STEPS}
-          </ThemedText>
-        </View>
+      {/* Step Indicator + Progress Bar */}
+      <View style={[styles.progressContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        {renderStepIndicator()}
         <View
           style={[
             styles.progressBarBackground,
-            { backgroundColor: colorScheme === 'dark' ? '#2a2d2f' : '#e0e0e0' },
+            { backgroundColor: colors.surfaceSecondary },
           ]}
         >
           <View
@@ -624,6 +792,11 @@ export default function DetailedCreateScreen() {
         </View>
       </View>
 
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
       {/* Step Content */}
       <ScrollView
         style={styles.scrollView}
@@ -635,14 +808,15 @@ export default function DetailedCreateScreen() {
         {currentStep === 3 && renderStep3()}
         {currentStep === 4 && renderStep4()}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Navigation Buttons */}
       <View
         style={[
           styles.navigationBar,
           {
-            borderTopColor: colorScheme === 'dark' ? '#333' : '#e0e0e0',
-            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            backgroundColor: colors.surface,
           },
         ]}
       >
@@ -652,12 +826,15 @@ export default function DetailedCreateScreen() {
               styles.navButton,
               styles.backButton,
               {
-                borderColor: colors.icon,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
               },
             ]}
             onPress={handleBack}
           >
-            <ThemedText style={styles.backButtonText}>戻る</ThemedText>
+            <ThemedText style={[styles.backButtonText, { color: colors.text }]}>
+              戻る
+            </ThemedText>
           </TouchableOpacity>
         ) : (
           <View style={styles.navButtonPlaceholder} />
@@ -680,7 +857,7 @@ export default function DetailedCreateScreen() {
           <TouchableOpacity
             style={[
               styles.navButton,
-              styles.nextButton,
+              styles.generateButton,
               { backgroundColor: colors.tint },
               isGenerating && styles.buttonDisabled,
             ]}
@@ -690,14 +867,20 @@ export default function DetailedCreateScreen() {
             {isGenerating ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color="#fff" size="small" />
-                <ThemedText style={styles.nextButtonText}>生成中...</ThemedText>
+                <ThemedText style={styles.generateButtonText}>生成中...</ThemedText>
               </View>
             ) : (
-              <ThemedText style={styles.nextButtonText}>メール生成</ThemedText>
+              <ThemedText style={styles.generateButtonText}>メール生成</ThemedText>
             )}
           </TouchableOpacity>
         )}
       </View>
+
+      <ContactPickerModal
+        visible={isContactPickerVisible}
+        onClose={() => setIsContactPickerVisible(false)}
+        onSelect={handleContactSelected}
+      />
     </ThemedView>
   );
 }
@@ -706,58 +889,130 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  progressContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
+  keyboardAvoidingView: {
+    flex: 1,
   },
-  progressHeader: {
+
+  /* ---- Step Indicator ---- */
+  stepIndicatorContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  stepIndicatorItem: {
+    alignItems: 'center',
+    position: 'relative',
+    flex: 1,
+  },
+  stepDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 6,
   },
-  progressText: {
+  stepDotCheckText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  stepDotNumber: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  stepLabel: {
+    fontSize: 11,
+  },
+  stepConnector: {
+    position: 'absolute',
+    top: 15,
+    left: '60%',
+    right: '-40%',
+    height: 2,
+    borderRadius: 1,
+  },
+
+  /* ---- Progress Bar ---- */
+  progressContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
   },
   progressBarBackground: {
-    height: 4,
-    borderRadius: 2,
+    height: 8,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 4,
   },
+
+  /* ---- Scroll / Content ---- */
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 24,
+  },
+
+  /* ---- Step Card ---- */
+  stepCard: {
+    borderRadius: 16,
+    borderWidth: 1,
     padding: 20,
-    paddingBottom: 20,
+  },
+  stepTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  stepNumberBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  stepNumberBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   stepTitle: {
-    marginBottom: 4,
+    fontSize: 22,
+    fontWeight: '700',
   },
   stepDescription: {
     fontSize: 14,
-    marginBottom: 20,
+    lineHeight: 20,
+    marginBottom: 24,
   },
+
+  /* ---- Field Groups ---- */
   fieldGroup: {
-    marginBottom: 20,
+    marginBottom: 22,
   },
   fieldLabel: {
     marginBottom: 10,
+    fontSize: 15,
   },
+
+  /* ---- Chips ---- */
   chipGroup: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 22,
   },
   chipText: {
     fontSize: 14,
@@ -767,30 +1022,48 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 2,
   },
+
+  /* ---- Contact Button ---- */
+  contactButton: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderStyle: 'dashed',
+    marginTop: 10,
+  },
+  contactButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  /* ---- Text Inputs ---- */
   textInput: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
   },
   multilineInput: {
     minHeight: 100,
-    paddingTop: 12,
+    paddingTop: 14,
   },
+
+  /* ---- Navigation Bar ---- */
   navigationBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    paddingBottom: 32,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    paddingBottom: 34,
     borderTopWidth: 1,
   },
   navButton: {
     paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 15,
+    borderRadius: 14,
     minWidth: 120,
     alignItems: 'center',
   },
@@ -798,17 +1071,39 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   backButton: {
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
-  nextButton: {},
+  nextButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   nextButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  generateButton: {
+    minWidth: 160,
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  generateButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   buttonDisabled: {
     opacity: 0.5,

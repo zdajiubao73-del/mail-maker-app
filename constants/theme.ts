@@ -1,41 +1,61 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+// Brand colors — rich indigo as primary, warm accents for personality
+const brand = {
+  primary: '#4F46E5',       // Indigo-600 — main brand
+  primaryLight: '#6366F1',  // Indigo-500 — lighter variant
+  primaryDark: '#3730A3',   // Indigo-800 — darker variant
+  primaryMuted: '#EEF2FF',  // Indigo-50  — subtle background
+  accent1: '#0EA5E9',       // Sky-500    — かんたん作成
+  accent2: '#8B5CF6',       // Violet-500 — こだわり作成
+  accent3: '#F59E0B',       // Amber-500  — テンプレート
+  success: '#10B981',       // Emerald-500
+  warning: '#F59E0B',       // Amber-500
+  danger: '#EF4444',        // Red-500
+  info: '#3B82F6',          // Blue-500
+};
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: '#0F172A',           // Slate-900
+    textSecondary: '#64748B',  // Slate-500
+    background: '#F8FAFC',     // Slate-50
+    surface: '#FFFFFF',
+    surfaceSecondary: '#F1F5F9', // Slate-100
+    tint: brand.primary,
+    tintLight: brand.primaryLight,
+    icon: '#94A3B8',           // Slate-400
+    tabIconDefault: '#94A3B8',
+    tabIconSelected: brand.primary,
+    border: '#E2E8F0',        // Slate-200
+    borderLight: '#F1F5F9',   // Slate-100
+    ...brand,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: '#F1F5F9',           // Slate-100
+    textSecondary: '#94A3B8',  // Slate-400
+    background: '#0F172A',     // Slate-900
+    surface: '#1E293B',        // Slate-800
+    surfaceSecondary: '#334155', // Slate-700
+    tint: '#818CF8',           // Indigo-400
+    tintLight: '#A5B4FC',      // Indigo-300
+    icon: '#64748B',           // Slate-500
+    tabIconDefault: '#64748B',
+    tabIconSelected: '#818CF8',
+    border: '#334155',         // Slate-700
+    borderLight: '#1E293B',    // Slate-800
+    ...brand,
+    primary: '#818CF8',        // Indigo-400 for dark mode
+    primaryLight: '#A5B4FC',
+    primaryMuted: '#1E1B4B',   // Indigo-950
   },
 };
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {

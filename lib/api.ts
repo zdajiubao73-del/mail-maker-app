@@ -1,7 +1,9 @@
 // 共通APIクライアントモジュール
 
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com';
+  process.env.EXPO_PUBLIC_SUPABASE_URL
+    ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/rest/v1`
+    : 'https://api.example.com';
 const TIMEOUT_MS = 30000;
 
 type RequestOptions = {
@@ -11,12 +13,21 @@ type RequestOptions = {
 };
 
 /**
- * 認証トークンを取得する（将来的にSecureStoreやAuth状態から取得）
- * 現時点ではプレースホルダーとしてnullを返す
+ * 認証トークンを取得する
+ * Supabase Auth のセッションからアクセストークンを取得する。
+ * 未認証の場合は anon key をフォールバックとして使用。
  */
 async function getAuthToken(): Promise<string | null> {
-  // TODO: Firebase Auth / Supabase Auth からトークンを取得
-  return null;
+  try {
+    const { supabase } = await import('@/lib/supabase');
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      return data.session.access_token;
+    }
+  } catch {
+    // Supabase 未初期化時はフォールバック
+  }
+  return process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? null;
 }
 
 /**

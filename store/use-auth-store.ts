@@ -1,8 +1,10 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { User, MailAccount } from '@/types/user';
-
-/** Free plan daily generation limit */
-const FREE_DAILY_LIMIT = 5;
+import { zustandStorage } from '@/lib/storage';
+import { clearTokens as clearGoogleTokens } from '@/lib/google-auth';
+import { clearTokens as clearMicrosoftTokens } from '@/lib/microsoft-auth';
+import { clearTokens as clearAppleTokens } from '@/lib/apple-auth';
 
 type AuthState = {
   user: User | null;
@@ -13,77 +15,74 @@ type AuthState = {
   logout: () => void;
   addMailAccount: (account: MailAccount) => void;
   removeMailAccount: (accountId: string) => void;
-  incrementDailyCount: () => void;
-  resetDailyCount: () => void;
-  canGenerate: () => boolean;
 };
 
-const MOCK_USER: User = {
-  id: 'user-mock-001',
-  displayName: 'テストユーザー',
-  plan: 'free',
-  dailyGenerationCount: 0,
-  mailAccounts: [],
-};
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      isLoggedIn: false,
 
-export const useAuthStore = create<AuthState>()((set, get) => ({
-  user: MOCK_USER,
-  isLoggedIn: true,
+      setUser: (user) => set({ user, isLoggedIn: true }),
 
-  setUser: (user) => set({ user, isLoggedIn: true }),
+      logout: () => {
+        clearGoogleTokens().catch(() => {});
+        clearMicrosoftTokens().catch(() => {});
+        clearAppleTokens().catch(() => {});
+        set({ user: null, isLoggedIn: false });
+      },
 
-  logout: () => set({ user: null, isLoggedIn: false }),
+      addMailAccount: (account) =>
+        set((state) => {
+          if (!state.user) return state;
+          return {
+            user: {
+              ...state.user,
+              mailAccounts: [...state.user.mailAccounts, account],
+            },
+          };
+        }),
 
-  addMailAccount: (account) =>
-    set((state) => {
-      if (!state.user) return state;
-      return {
-        user: {
-          ...state.user,
-          mailAccounts: [...state.user.mailAccounts, account],
-        },
-      };
+      removeMailAccount: (accountId) =>
+        set((state) => {
+          if (!state.user) return state;
+          return {
+            user: {
+              ...state.user,
+              mailAccounts: state.user.mailAccounts.filter(
+                (a) => a.id !== accountId,
+              ),
+            },
+          };
+        }),
     }),
-
-  removeMailAccount: (accountId) =>
-    set((state) => {
-      if (!state.user) return state;
-      return {
-        user: {
-          ...state.user,
-          mailAccounts: state.user.mailAccounts.filter(
-            (a) => a.id !== accountId,
-          ),
-        },
-      };
-    }),
-
-  incrementDailyCount: () =>
-    set((state) => {
-      if (!state.user) return state;
-      return {
-        user: {
-          ...state.user,
-          dailyGenerationCount: state.user.dailyGenerationCount + 1,
-        },
-      };
-    }),
-
-  resetDailyCount: () =>
-    set((state) => {
-      if (!state.user) return state;
-      return {
-        user: {
-          ...state.user,
-          dailyGenerationCount: 0,
-        },
-      };
-    }),
-
-  canGenerate: () => {
-    const { user } = get();
-    if (!user) return false;
-    if (user.plan === 'premium') return true;
-    return user.dailyGenerationCount < FREE_DAILY_LIMIT;
-  },
-}));
+    {
+      name: 'auth-storage',
+      version: 2,
+      storage: zustandStorage,
+      partialize: (state) => ({ user: state.user }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.isLoggedIn = state.user !== null;
+        }
+      },
+      migrate: (persisted, version) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const state = persisted as any;
+        if (version < 2 && state.user) {
+          // v1 → v2: Remove quota fields, map plan values
+          delete state.user.monthlyGenerationCount;
+          delete state.user.monthlyGenerationResetMonth;
+          if (state.user.plan === 'premium') {
+            state.user.plan = 'subscribed';
+          } else if (state.user.plan === 'free' || state.user.plan === 'trial') {
+            state.user.plan = 'free';
+          }
+          delete state.user.trialStartDate;
+          delete state.user.trialEndDate;
+        }
+        return state;
+      },
+    },
+  ),
+);

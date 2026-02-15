@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  Alert,
   ScrollView,
   useColorScheme,
 } from 'react-native';
@@ -12,8 +11,6 @@ import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useMailStore } from '@/store/use-mail-store';
-import { usePlanStore } from '@/store/use-plan-store';
 import { getTemplates, getTemplatesByCategory } from '@/lib/templates';
 import { Colors } from '@/constants/theme';
 import type { PurposeCategory, PromptTemplate } from '@/types';
@@ -38,12 +35,6 @@ export default function TemplatesScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
-  const setTemplateId = useMailStore((s) => s.setTemplateId);
-  const setMode = useMailStore((s) => s.setMode);
-  const setSituation = useMailStore((s) => s.setSituation);
-  const setPurposeCategory = useMailStore((s) => s.setPurposeCategory);
-  const isPremium = usePlanStore((s) => s.isPremium);
-
   const [selectedFilter, setSelectedFilter] = useState<PurposeCategory | 'すべて'>('すべて');
 
   const templates = useMemo(() => {
@@ -55,29 +46,9 @@ export default function TemplatesScreen() {
 
   const handleTemplatePress = useCallback(
     (template: PromptTemplate) => {
-      if (template.isPremium && !isPremium()) {
-        // Show premium upsell (for now just alert)
-        Alert.alert(
-          'プレミアム限定',
-          'このテンプレートはプレミアムプラン限定です。アップグレードして全テンプレートをご利用ください。',
-          [
-            { text: 'キャンセル', style: 'cancel' },
-            {
-              text: 'プランを確認',
-              onPress: () => router.push('/settings/plan'),
-            },
-          ],
-        );
-        return;
-      }
-
-      setMode('template');
-      setTemplateId(template.id);
-      setSituation(template.situation);
-      setPurposeCategory(template.category);
-      router.push('/create/simple');
+      router.push({ pathname: '/create/template', params: { id: template.id } });
     },
-    [isPremium, setMode, setTemplateId, setSituation, setPurposeCategory, router],
+    [router],
   );
 
   const renderTemplateCard = useCallback(
@@ -101,11 +72,6 @@ export default function TemplatesScreen() {
               <ThemedText type="defaultSemiBold" style={styles.cardTitle} numberOfLines={1}>
                 {item.name}
               </ThemedText>
-              {item.isPremium && (
-                <View style={styles.proBadge}>
-                  <ThemedText style={styles.proBadgeText}>PRO</ThemedText>
-                </View>
-              )}
             </View>
             <View style={[styles.categoryBadge, { backgroundColor: categoryColor + '20' }]}>
               <ThemedText style={[styles.categoryBadgeText, { color: categoryColor }]}>
@@ -237,18 +203,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     flexShrink: 1,
-  },
-  proBadge: {
-    backgroundColor: '#FFD700',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  proBadgeText: {
-    color: '#000',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
   },
   categoryBadge: {
     paddingHorizontal: 10,
