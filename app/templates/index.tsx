@@ -28,6 +28,7 @@ const CATEGORY_COLORS: Record<PurposeCategory, string> = {
   '就職・転職': '#4CAF50',
   '学校・学術': '#FF9800',
   'プライベート': '#E91E63',
+  'その他': '#9E9E9E',
 };
 
 export default function TemplatesScreen() {
@@ -49,6 +50,16 @@ export default function TemplatesScreen() {
       router.push({ pathname: '/create/template', params: { id: template.id } });
     },
     [router],
+  );
+
+  const getFilterLabel = useCallback(
+    (option: PurposeCategory | 'すべて') => {
+      if (option === 'すべて') {
+        return 'すべて';
+      }
+      return option;
+    },
+    [],
   );
 
   const renderTemplateCard = useCallback(
@@ -125,7 +136,7 @@ export default function TemplatesScreen() {
                     : { color: colors.text },
                 ]}
               >
-                {option}
+                {getFilterLabel(option)}
               </ThemedText>
             </TouchableOpacity>
           ))}
@@ -142,7 +153,7 @@ export default function TemplatesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <ThemedText style={[styles.emptyText, { color: colors.icon }]}>
-              テンプレートが見つかりませんでした
+              テンプレートがありません
             </ThemedText>
           </View>
         }

@@ -1,7 +1,11 @@
 // RevenueCat 課金管理モジュール
 // API キーが設定されていない場合やネイティブモジュール未対応時はモック動作
 
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
+
+/** Expo Go で実行中かどうか */
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 const REVENUECAT_API_KEY = Platform.select({
   ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '',
@@ -50,6 +54,11 @@ async function loadNativeModule(): Promise<boolean> {
  * アプリ起動時に1回だけ呼ぶ
  */
 export async function initializePurchases(): Promise<void> {
+  if (isExpoGo) {
+    if (__DEV__) console.log('[Purchases] Expo Go detected — running in mock mode');
+    return;
+  }
+
   if (!REVENUECAT_API_KEY) {
     if (__DEV__) console.log('[Purchases] API key not set — running in mock mode');
     return;
@@ -182,6 +191,49 @@ export async function getSubscriptionDetails(): Promise<SubscriptionStatus> {
     };
   } catch {
     return { isActive: false, periodType: null, expirationDate: null, willRenew: false };
+  }
+}
+
+/**
+ * トライアル適格性をチェックする
+ * ユーザーが Apple 無料トライアルの対象かどうかを判定
+ * RevenueCat 未設定時は全プロダクトを適格として返す（開発時のモック動作）
+ */
+let trialEligibilityCache: Record<string, boolean> | null = null;
+
+export async function checkTrialEligibility(
+  productIds: string[],
+): Promise<Record<string, boolean>> {
+  if (trialEligibilityCache) return trialEligibilityCache;
+
+  if (!isConfigured || !PurchasesModule) {
+    // 未設定時は全て適格（開発環境用）
+    const result: Record<string, boolean> = {};
+    for (const id of productIds) {
+      result[id] = true;
+    }
+    trialEligibilityCache = result;
+    return result;
+  }
+
+  try {
+    const eligibilityMap =
+      await PurchasesModule.checkTrialOrIntroductoryPriceEligibility(productIds);
+    const result: Record<string, boolean> = {};
+    for (const id of productIds) {
+      // INTRO_ELIGIBILITY_STATUS_ELIGIBLE = 2
+      result[id] = (eligibilityMap[id] as any)?.status === 2;
+    }
+    trialEligibilityCache = result;
+    return result;
+  } catch (error) {
+    if (__DEV__) console.warn('[Purchases] Failed to check trial eligibility:', error);
+    // エラー時は適格として扱う（ペイウォールでブロックしないため）
+    const result: Record<string, boolean> = {};
+    for (const id of productIds) {
+      result[id] = true;
+    }
+    return result;
   }
 }
 

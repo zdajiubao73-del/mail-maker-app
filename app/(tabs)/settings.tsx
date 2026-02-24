@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import {
   Linking,
@@ -28,87 +29,82 @@ type SettingsSection = {
   items: SettingsItem[];
 };
 
-const SETTINGS_SECTIONS: SettingsSection[] = [
-  {
-    title: 'アカウント',
-    items: [
-      {
-        label: 'マイアカウント',
-        icon: 'person.fill',
-        iconBg: '#4F46E5',
-        route: '/settings/account',
-      },
-      {
-        label: 'メール連携',
-        icon: 'envelope.fill',
-        iconBg: '#0EA5E9',
-        route: '/settings/account',
-      },
-    ],
-  },
-  {
-    title: 'サブスクリプション',
-    items: [
-      {
-        label: 'プラン・課金',
-        icon: 'creditcard.fill',
-        iconBg: '#F59E0B',
-        route: '/settings/plan',
-      },
-    ],
-  },
-  {
-    title: 'データ管理',
-    items: [
-      {
-        label: 'プリセット管理',
-        icon: 'tray.full.fill',
-        iconBg: '#8B5CF6',
-        route: '/settings/presets',
-      },
-      {
-        label: '学習データ管理',
-        icon: 'brain.head.profile',
-        iconBg: '#EC4899',
-        route: '/settings/learning-data',
-      },
-    ],
-  },
-  {
-    title: 'その他',
-    items: [
-      {
-        label: 'お問い合わせ',
-        icon: 'envelope.fill',
-        iconBg: '#3B82F6',
-        externalUrl: 'mailto:support@ai-mail-app.com',
-      },
-      {
-        label: '利用規約',
-        icon: 'doc.text.fill',
-        iconBg: '#6366F1',
-        route: '/settings/terms',
-      },
-      {
-        label: 'プライバシーポリシー',
-        icon: 'lock.shield.fill',
-        iconBg: '#10B981',
-        route: '/settings/privacy',
-      },
-      {
-        label: 'バージョン',
-        icon: 'info.circle.fill',
-        iconBg: '#94A3B8',
-        value: '1.0.0',
-      },
-    ],
-  },
-];
-
 export default function SettingsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+
+  const settingsSections: SettingsSection[] = useMemo(() => [
+    {
+      title: 'アカウント',
+      items: [
+        {
+          label: 'メール連携',
+          icon: 'envelope.fill',
+          iconBg: '#0EA5E9',
+          route: '/settings/account',
+        },
+      ],
+    },
+    {
+      title: 'サブスクリプション',
+      items: [
+        {
+          label: 'プラン・課金',
+          icon: 'creditcard.fill',
+          iconBg: '#F59E0B',
+          route: '/settings/plan',
+        },
+      ],
+    },
+    {
+      title: 'データ管理',
+      items: [
+        {
+          label: 'よく使う文章',
+          icon: 'tray.full.fill',
+          iconBg: '#8B5CF6',
+          route: '/settings/presets',
+        },
+        {
+          label: '学習データ管理',
+          icon: 'brain.head.profile',
+          iconBg: '#EC4899',
+          route: '/settings/learning-data',
+        },
+      ],
+    },
+    {
+      title: 'その他',
+      items: [
+        {
+          label: 'お問い合わせ',
+          icon: 'envelope.fill',
+          iconBg: '#3B82F6',
+          externalUrl: 'mailto:apuriyong500@gmail.com',
+        },
+        {
+          label: '利用規約',
+          icon: 'doc.text.fill',
+          iconBg: '#6366F1',
+          route: '/settings/terms',
+        },
+        {
+          label: 'プライバシーポリシー',
+          icon: 'lock.shield.fill',
+          iconBg: '#10B981',
+          route: '/settings/privacy',
+        },
+        {
+          label: 'バージョン',
+          icon: 'info.circle.fill',
+          iconBg: '#94A3B8',
+          value: '1.0.0',
+        },
+      ],
+    },
+  ], []);
+
   const handlePress = (item: SettingsItem) => {
     if (item.disabled) return;
     if (item.externalUrl) {
@@ -125,7 +121,7 @@ export default function SettingsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {SETTINGS_SECTIONS.map((section) => (
+          {settingsSections.map((section) => (
             <View key={section.title} style={styles.section}>
               <ThemedText style={[styles.sectionTitle, { color: colors.textSecondary }]}>
                 {section.title}

@@ -7,6 +7,7 @@ import {
 } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
+import { supabase } from '@/lib/supabase';
 
 // WebBrowser の warm-up（iOS パフォーマンス最適化）
 WebBrowser.maybeCompleteAuthSession();
@@ -31,12 +32,26 @@ const LOGIN_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
 ];
 
+// 連絡先インポート用スコープ（People API 読み取り専用）
+const CONTACTS_SCOPES = [
+  'https://www.googleapis.com/auth/contacts.readonly',
+  'https://www.googleapis.com/auth/userinfo.email',
+];
+
 // SecureStore のキー
 const TOKEN_KEYS = {
   ACCESS_TOKEN: 'google_access_token',
   REFRESH_TOKEN: 'google_refresh_token',
   EXPIRY: 'google_token_expiry',
   EMAIL: 'google_email',
+  TOKEN_REF: 'google_token_ref',
+} as const;
+
+// 連絡先トークン用の SecureStore キー
+const CONTACTS_TOKEN_KEYS = {
+  ACCESS_TOKEN: 'google_contacts_access_token',
+  REFRESH_TOKEN: 'google_contacts_refresh_token',
+  EXPIRY: 'google_contacts_token_expiry',
 } as const;
 
 /**
@@ -136,8 +151,11 @@ export async function exchangeCodeForTokens(
   });
 
   if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`トークン取得に失敗しました: ${errorData}`);
+    if (__DEV__) {
+      const errorData = await response.text();
+      console.warn('Google token exchange failed:', errorData);
+    }
+    throw new Error('トークン取得に失敗しました');
   }
 
   const data = await response.json();
@@ -155,6 +173,9 @@ export async function exchangeCodeForTokens(
 
   // SecureStore に保存
   await saveTokens(tokens);
+
+  // サーバーにトークンを暗号化保存し、tokenRef を取得
+  await storeTokenOnServer(tokens);
 
   return tokens;
 }
@@ -200,6 +221,41 @@ export async function fetchUserProfile(
     name: data.name ?? '',
     email: data.email ?? '',
   };
+}
+
+/**
+ * トークンをサーバー側に暗号化保存し、tokenRef を SecureStore に保存する
+ */
+async function storeTokenOnServer(tokens: GoogleTokens): Promise<void> {
+  try {
+    const { data, error } = await supabase.functions.invoke('manage-tokens', {
+      body: {
+        action: 'store',
+        provider: 'google',
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresAt,
+        email: tokens.email,
+      },
+    });
+
+    if (error || !data?.tokenRef) {
+      if (__DEV__) console.warn('Failed to store token on server:', error);
+      return;
+    }
+
+    await SecureStore.setItemAsync(TOKEN_KEYS.TOKEN_REF, data.tokenRef);
+  } catch (err) {
+    if (__DEV__) console.warn('storeTokenOnServer error:', err);
+  }
+}
+
+/**
+ * サーバー側のトークン参照IDを取得する
+ * tokenRef がない場合は null を返す（フォールバックで accessToken を使用）
+ */
+export async function getTokenRef(): Promise<string | null> {
+  return SecureStore.getItemAsync(TOKEN_KEYS.TOKEN_REF);
 }
 
 /**
@@ -305,12 +361,140 @@ export async function getValidAccessToken(): Promise<string | null> {
 
 /**
  * 保存されたトークンを削除（ログアウト時）
+ * Google の revocation endpoint でトークンをサーバー側で失効させる
  */
 export async function clearTokens(): Promise<void> {
+  // トークン失効をサーバー側に通知（fire-and-forget）
+  const accessToken = await SecureStore.getItemAsync(TOKEN_KEYS.ACCESS_TOKEN);
+  if (accessToken) {
+    fetch(`${GOOGLE_AUTH_CONFIG.revocationEndpoint}?token=${accessToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    }).catch(() => {});
+  }
+
+  // サーバー側のトークンも削除（fire-and-forget）
+  const tokenRef = await SecureStore.getItemAsync(TOKEN_KEYS.TOKEN_REF);
+  if (tokenRef) {
+    supabase.functions.invoke('manage-tokens', {
+      body: { action: 'delete', tokenRef },
+    }).catch(() => {});
+  }
+
+  // メインアカウントトークン削除
   await SecureStore.deleteItemAsync(TOKEN_KEYS.ACCESS_TOKEN);
   await SecureStore.deleteItemAsync(TOKEN_KEYS.REFRESH_TOKEN);
   await SecureStore.deleteItemAsync(TOKEN_KEYS.EXPIRY);
   await SecureStore.deleteItemAsync(TOKEN_KEYS.EMAIL);
+  await SecureStore.deleteItemAsync(TOKEN_KEYS.TOKEN_REF);
+
+  // 連絡先トークンも同時に削除
+  await SecureStore.deleteItemAsync(CONTACTS_TOKEN_KEYS.ACCESS_TOKEN);
+  await SecureStore.deleteItemAsync(CONTACTS_TOKEN_KEYS.REFRESH_TOKEN);
+  await SecureStore.deleteItemAsync(CONTACTS_TOKEN_KEYS.EXPIRY);
+}
+
+/**
+ * 連絡先インポート用の useAuthRequest 設定を返す
+ */
+export function getContactsAuthRequestConfig() {
+  return {
+    clientId: getClientId(),
+    scopes: CONTACTS_SCOPES,
+    redirectUri: getRedirectUri(),
+    responseType: ResponseType.Code,
+    usePKCE: true,
+    extraParams: {
+      access_type: 'offline',
+      prompt: 'consent',
+    },
+  };
+}
+
+/**
+ * 連絡先用の認可コードをトークンに交換する
+ */
+export async function exchangeContactsCodeForTokens(
+  code: string,
+  codeVerifier?: string,
+): Promise<{ accessToken: string }> {
+  const clientId = getClientId();
+  const redirectUri = getRedirectUri();
+
+  const body = new URLSearchParams({
+    code,
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    grant_type: 'authorization_code',
+    ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
+  });
+
+  const response = await fetch(GOOGLE_AUTH_CONFIG.tokenEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    if (__DEV__) {
+      const errorData = await response.text();
+      console.warn('Google contacts token exchange failed:', errorData);
+    }
+    throw new Error('連絡先トークン取得に失敗しました');
+  }
+
+  const data = await response.json();
+  const expiresAt = Date.now() + (data.expires_in ?? 3600) * 1000;
+
+  await saveContactsTokens(data.access_token, data.refresh_token, expiresAt);
+
+  return { accessToken: data.access_token };
+}
+
+/**
+ * 連絡先用トークンを SecureStore に保存
+ */
+async function saveContactsTokens(
+  accessToken: string,
+  refreshToken?: string,
+  expiresAt?: number,
+): Promise<void> {
+  await SecureStore.setItemAsync(CONTACTS_TOKEN_KEYS.ACCESS_TOKEN, accessToken);
+  if (refreshToken) {
+    await SecureStore.setItemAsync(CONTACTS_TOKEN_KEYS.REFRESH_TOKEN, refreshToken);
+  }
+  if (expiresAt) {
+    await SecureStore.setItemAsync(CONTACTS_TOKEN_KEYS.EXPIRY, String(expiresAt));
+  }
+}
+
+/**
+ * 連絡先用の有効なアクセストークンを取得する（必要に応じてリフレッシュ）
+ */
+export async function getContactsAccessToken(): Promise<string | null> {
+  const accessToken = await SecureStore.getItemAsync(CONTACTS_TOKEN_KEYS.ACCESS_TOKEN);
+  if (!accessToken) return null;
+
+  const expiryStr = await SecureStore.getItemAsync(CONTACTS_TOKEN_KEYS.EXPIRY);
+  const expiresAt = expiryStr ? Number(expiryStr) : 0;
+
+  if (expiresAt > Date.now() + 5 * 60 * 1000) {
+    return accessToken;
+  }
+
+  // リフレッシュトークンで更新を試みる
+  const refreshToken = await SecureStore.getItemAsync(CONTACTS_TOKEN_KEYS.REFRESH_TOKEN);
+  if (refreshToken) {
+    try {
+      const refreshed = await refreshAccessToken(refreshToken);
+      await saveContactsTokens(refreshed.accessToken, refreshed.refreshToken, refreshed.expiresAt);
+      return refreshed.accessToken;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 // useAuthRequest のフック型を re-export

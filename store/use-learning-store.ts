@@ -7,9 +7,11 @@ import { zustandStorage } from '@/lib/storage';
 
 type LearningState = {
   profile: LearningProfile | null;
+  learningEnabled: boolean;
 
   analyzeHistory: (history: MailHistoryItem[]) => void;
   updatePreferences: (partial: Partial<UserStylePreferences>) => void;
+  setLearningEnabled: (enabled: boolean) => void;
   clearLearningData: () => void;
 };
 
@@ -17,6 +19,7 @@ export const useLearningStore = create<LearningState>()(
   persist(
     (set, get) => ({
       profile: null,
+      learningEnabled: true,
 
       analyzeHistory: (history) => {
         const statistics = analyzeMailHistory(history);
@@ -78,6 +81,10 @@ export const useLearningStore = create<LearningState>()(
         });
       },
 
+      setLearningEnabled: (enabled) => {
+        set({ learningEnabled: enabled });
+      },
+
       clearLearningData: () => {
         set({ profile: null });
       },
@@ -85,6 +92,14 @@ export const useLearningStore = create<LearningState>()(
     {
       name: 'learning-storage',
       storage: zustandStorage,
+      version: 1,
+      partialize: (state) => ({
+        profile: state.profile,
+        learningEnabled: state.learningEnabled,
+      }),
+      migrate: (persisted) => {
+        return persisted as any;
+      },
     },
   ),
 );

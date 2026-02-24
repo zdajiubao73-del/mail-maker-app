@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, LogBox, View } from 'react-native';
 import 'react-native-reanimated';
@@ -13,9 +13,8 @@ initSentry();
 LogBox.ignoreLogs(['[RevenueCat]']);
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
-import LoginScreen from '@/components/login-screen';
-import PaywallScreen from '@/components/paywall-screen';
 import { initializePurchases, addCustomerInfoListener } from '@/lib/purchases';
 import { usePlanStore } from '@/store/use-plan-store';
 import { useMailStore } from '@/store/use-mail-store';
@@ -23,6 +22,7 @@ import { useContactStore } from '@/store/use-contact-store';
 import { useAuthStore } from '@/store/use-auth-store';
 import { usePresetStore } from '@/store/use-preset-store';
 import { useLearningStore } from '@/store/use-learning-store';
+import { useOnboardingStore } from '@/store/use-onboarding-store';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -52,6 +52,7 @@ function useHydration() {
       waitForHydration(usePlanStore),
       waitForHydration(usePresetStore),
       waitForHydration(useLearningStore),
+      waitForHydration(useOnboardingStore),
     ]).then(() => setHydrated(true));
   }, []);
 
@@ -59,19 +60,21 @@ function useHydration() {
 }
 
 function RootLayout() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const syncWithRevenueCat = usePlanStore((s) => s.syncWithRevenueCat);
   const applySubscriptionStatus = usePlanStore((s) => s.applySubscriptionStatus);
-  const canUseApp = usePlanStore((s) => s.canUseApp);
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const hydrated = useHydration();
+
+  const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
+  const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
 
   useEffect(() => {
     (async () => {
       await initializePurchases();
       await syncWithRevenueCat();
     })();
-  }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // サブスクリプション状態のリアルタイム監視
   useEffect(() => {
@@ -81,6 +84,22 @@ function RootLayout() {
     return unsubscribe;
   }, [applySubscriptionStatus]);
 
+  // オンボーディング: 初回起動時にリダイレクト（既存ユーザーは自動スキップ）
+  useEffect(() => {
+    if (!hydrated || hasCompletedOnboarding) return;
+
+    // 既存ユーザー判定: 履歴またはメールアカウントがあればスキップ
+    const hasHistory = useMailStore.getState().history.length > 0;
+    const hasAccounts = useAuthStore.getState().mailAccounts.length > 0;
+
+    if (hasHistory || hasAccounts) {
+      completeOnboarding();
+      return;
+    }
+
+    router.replace('/onboarding');
+  }, [hydrated, hasCompletedOnboarding, completeOnboarding, router]);
+
   if (!hydrated) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -89,46 +108,31 @@ function RootLayout() {
     );
   }
 
-  if (!isLoggedIn) {
-    return (
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <LoginScreen />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    );
-  }
-
-  if (!canUseApp()) {
-    return (
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <PaywallScreen />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    );
-  }
-
   return (
+    <ErrorBoundary>
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{
         headerBackVisible: false,
         headerLeft: () => <HeaderBackButton />,
       }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="create/simple" options={{ title: 'かんたん作成' }} />
         <Stack.Screen name="create/detailed" options={{ title: 'こだわり作成' }} />
         <Stack.Screen name="templates/index" options={{ title: 'テンプレート一覧' }} />
         <Stack.Screen name="create/template" options={{ title: 'テンプレートから作成' }} />
         <Stack.Screen name="preview" options={{ title: 'プレビュー' }} />
         <Stack.Screen name="history/detail" options={{ title: 'メール詳細' }} />
-        <Stack.Screen name="settings/account" options={{ title: 'マイアカウント' }} />
+        <Stack.Screen name="settings/account" options={{ title: 'メール連携' }} />
         <Stack.Screen name="settings/plan" options={{ title: 'プラン・課金' }} />
         <Stack.Screen name="settings/terms" options={{ title: '利用規約' }} />
         <Stack.Screen name="settings/privacy" options={{ title: 'プライバシーポリシー' }} />
-        <Stack.Screen name="settings/presets" options={{ title: 'プリセット管理' }} />
+        <Stack.Screen name="settings/presets" options={{ title: 'よく使う文章' }} />
         <Stack.Screen name="settings/learning-data" options={{ title: '学習データ管理' }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

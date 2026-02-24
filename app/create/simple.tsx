@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ContactPickerModal } from '@/components/contact-picker-modal';
+import { PaywallModal } from '@/components/paywall-modal';
 import { useMailStore } from '@/store/use-mail-store';
 import { usePlanStore } from '@/store/use-plan-store';
 import { SITUATIONS, type SituationItem } from '@/constants/situations';
@@ -37,7 +38,6 @@ export default function SimpleCreateScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-
   const {
     setPurposeCategory,
     setSituation,
@@ -58,6 +58,7 @@ export default function SimpleCreateScreen() {
   const [selectedSituation, setSelectedSituation] = useState<string | null>(null);
   const [keyPoints, setKeyPoints] = useState('');
   const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
 
   const handleSelectFromContacts = useCallback(() => {
     setIsContactPickerVisible(true);
@@ -85,16 +86,17 @@ export default function SimpleCreateScreen() {
 
   const handleGenerate = useCallback(async () => {
     if (!selectedCategory || !selectedSituation) {
-      Alert.alert('入力エラー', 'メールの目的を選択してください。');
+      Alert.alert('入力エラー', 'メールの目的を選択してください');
       return;
     }
 
-    const { canGenerate, isSubscribed } = usePlanStore.getState();
+    const { canUseApp, canGenerate } = usePlanStore.getState();
+    if (!canUseApp()) {
+      setShowPaywallModal(true);
+      return;
+    }
     if (!canGenerate()) {
-      const message = isSubscribed()
-        ? '今月の生成回数上限に達しました。来月まで少々お待ちください。'
-        : '本日の生成回数上限に達しました。サブスクリプションに登録すると月500回まで生成できます。';
-      Alert.alert('生成回数上限', message);
+      Alert.alert('生成上限に達しました', '今月の生成上限に達しました。来月までお待ちください。');
       return;
     }
 
@@ -116,8 +118,8 @@ export default function SimpleCreateScreen() {
 
     try {
       setIsGenerating(true);
-      const learningProfile = useLearningStore.getState().profile;
-      const learningContext = learningProfile ? buildLearningContext(learningProfile) : undefined;
+      const { profile: learningProfile, learningEnabled } = useLearningStore.getState();
+      const learningContext = learningEnabled && learningProfile ? buildLearningContext(learningProfile) : undefined;
       const mail = await generateMail({
         recipient: defaultRecipient,
         purposeCategory: selectedCategory,
@@ -135,7 +137,7 @@ export default function SimpleCreateScreen() {
       usePlanStore.getState().incrementGenerationCount();
       router.push('/preview');
     } catch {
-      Alert.alert('エラー', 'メールの生成に失敗しました。もう一度お試しください。');
+      Alert.alert('生成エラー', 'メールの生成に失敗しました。もう一度お試しください。');
     } finally {
       setIsGenerating(false);
     }
@@ -175,14 +177,14 @@ export default function SimpleCreateScreen() {
         {/* Step indicator */}
         <View style={styles.stepIndicator}>
           <ThemedText type="subtitle" style={styles.stepTitle}>
-            かんたん作成
+            {'かんたん作成'}
           </ThemedText>
           <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-            目的を選ぶだけでAIがメールを作成します
+            {'目的を選ぶだけでAIが最適なメールを自動作成します'}
           </ThemedText>
         </View>
 
-        {/* Section 1: 送信先 */}
+        {/* Section 1: Recipient */}
         <View
           style={[
             styles.card,
@@ -197,7 +199,7 @@ export default function SimpleCreateScreen() {
               <ThemedText style={styles.stepCircleText}>1</ThemedText>
             </View>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              送信先
+              {'送信先（任意）'}
             </ThemedText>
           </View>
 
@@ -210,7 +212,7 @@ export default function SimpleCreateScreen() {
                 backgroundColor: colors.surface,
               },
             ]}
-            placeholder="お名前"
+            placeholder="宛名（例: 田中太郎）"
             placeholderTextColor={colors.icon}
             value={recipientName}
             onChangeText={setRecipientName}
@@ -225,7 +227,7 @@ export default function SimpleCreateScreen() {
                 backgroundColor: colors.surface,
               },
             ]}
-            placeholder="メールアドレス"
+            placeholder="メールアドレス（例: tanaka@example.com）"
             placeholderTextColor={colors.icon}
             value={recipientEmail}
             onChangeText={setRecipientEmail}
@@ -239,12 +241,12 @@ export default function SimpleCreateScreen() {
             activeOpacity={0.7}
           >
             <ThemedText style={[styles.contactButtonText, { color: colors.tint }]}>
-              連絡先から選択
+              {'連絡先から選択'}
             </ThemedText>
           </TouchableOpacity>
         </View>
 
-        {/* Section 2: メールの目的 */}
+        {/* Section 2: Email Purpose */}
         <View
           style={[
             styles.card,
@@ -259,7 +261,7 @@ export default function SimpleCreateScreen() {
               <ThemedText style={styles.stepCircleText}>2</ThemedText>
             </View>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              メールの目的
+              {'メールの目的'}
             </ThemedText>
           </View>
 
@@ -309,7 +311,7 @@ export default function SimpleCreateScreen() {
               <ThemedText
                 style={[styles.subcategoryLabel, { color: colors.textSecondary }]}
               >
-                カテゴリを選択
+                {'カテゴリを選択'}
               </ThemedText>
               <View style={styles.subcategoryList}>
                 {subcategories.map((sub) => {
@@ -355,7 +357,7 @@ export default function SimpleCreateScreen() {
               <ThemedText
                 style={[styles.subcategoryLabel, { color: colors.textSecondary }]}
               >
-                具体的なシチュエーションを選択
+                {'シチュエーションを選択'}
               </ThemedText>
               <View style={styles.situationList}>
                 {selectedSubcategory.situations.map((situation) => {
@@ -393,7 +395,7 @@ export default function SimpleCreateScreen() {
           )}
         </View>
 
-        {/* Section 3: 要点入力 */}
+        {/* Section 3: Key Points */}
         <View
           style={[
             styles.card,
@@ -408,12 +410,12 @@ export default function SimpleCreateScreen() {
               <ThemedText style={styles.stepCircleText}>3</ThemedText>
             </View>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              要点入力
+              {'伝えたいポイント（任意）'}
             </ThemedText>
           </View>
 
           <ThemedText style={[styles.sectionHint, { color: colors.textSecondary }]}>
-            伝えたいポイントがあれば入力してください（任意）
+            {'メールに含めたい内容を自由に入力してください'}
           </ThemedText>
 
           <TextInput
@@ -426,7 +428,7 @@ export default function SimpleCreateScreen() {
                 backgroundColor: colors.surface,
               },
             ]}
-            placeholder="メールの要点を入力してください"
+            placeholder="例: 来週の会議の日程を調整したい、〇〇プロジェクトの進捗報告..."
             placeholderTextColor={colors.icon}
             value={keyPoints}
             onChangeText={setKeyPoints}
@@ -465,12 +467,12 @@ export default function SimpleCreateScreen() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="#FFFFFF" size="large" />
               <ThemedText style={styles.generateButtonText}>
-                生成中...
+                {'メール生成中...'}
               </ThemedText>
             </View>
           ) : (
             <ThemedText style={styles.generateButtonText}>
-              メール生成
+              {'メールを生成する'}
             </ThemedText>
           )}
         </TouchableOpacity>
@@ -481,6 +483,10 @@ export default function SimpleCreateScreen() {
         visible={isContactPickerVisible}
         onClose={() => setIsContactPickerVisible(false)}
         onSelect={handleContactSelected}
+      />
+      <PaywallModal
+        visible={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
       />
     </ThemedView>
   );

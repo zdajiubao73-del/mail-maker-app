@@ -83,7 +83,7 @@ export function ContactPickerModal({ visible, onClose, onSelect }: Props) {
               </View>
               <ThemedText style={styles.emptyText}>連絡先がありません</ThemedText>
               <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-                連絡先タブから連絡先を追加してください
+                連絡先タブから追加してください
               </ThemedText>
             </View>
           ) : (
@@ -97,7 +97,7 @@ export function ContactPickerModal({ visible, onClose, onSelect }: Props) {
                     {section.title}
                   </ThemedText>
                   <ThemedText style={[styles.sectionCount, { color: colors.textSecondary }]}>
-                    {section.data.length}件
+                    {`${section.data.length}件`}
                   </ThemedText>
                 </View>
               )}

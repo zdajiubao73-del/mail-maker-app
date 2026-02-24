@@ -5,24 +5,55 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
-import { STATUS_CONFIG, formatRelativeDate } from '@/constants/mail-status';
+import { STATUS_CONFIG } from '@/constants/mail-status';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMailStore } from '@/store/use-mail-store';
 import type { MailHistoryItem } from '@/types';
+
+function formatRelativeDate(date: Date): string {
+  const d = new Date(date);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'たった今';
+  if (diffMins < 60) return `${diffMins}分前`;
+  if (diffHours < 24) return `${diffHours}時間前`;
+  if (diffDays < 7) return `${diffDays}日前`;
+
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${month}/${day} ${hours}:${minutes}`;
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'sent': return '送信済み';
+    case 'draft': return '下書き';
+    default: return '生成済み';
+  }
+}
 
 function HistoryItem({
   item,
   colors,
   onPress,
+  formatRelativeDate,
+  statusLabel,
 }: {
   item: MailHistoryItem;
   colors: (typeof Colors)['light'];
   onPress: () => void;
+  formatRelativeDate: (date: Date) => string;
+  statusLabel: string;
 }) {
   const statusConfig = STATUS_CONFIG[item.status];
 
@@ -65,7 +96,7 @@ function HistoryItem({
             <ThemedText
               style={[styles.statusText, { color: statusConfig.color }]}
             >
-              {statusConfig.label}
+              {statusLabel}
             </ThemedText>
           </View>
         </View>
@@ -99,10 +130,10 @@ function EmptyState({ colors }: { colors: (typeof Colors)['light'] }) {
         <IconSymbol name="clock.fill" size={40} color={colors.icon} />
       </View>
       <ThemedText style={styles.emptyText}>
-        まだメール履歴がありません
+        {'履歴がありません'}
       </ThemedText>
       <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-        メールを作成すると、ここに履歴が表示されます
+        {'メールを作成すると履歴が表示されます'}
       </ThemedText>
     </View>
   );
@@ -124,6 +155,8 @@ export default function HistoryScreen() {
               item={item}
               colors={colors}
               onPress={() => router.push({ pathname: '/history/detail', params: { id: item.id } })}
+              formatRelativeDate={formatRelativeDate}
+              statusLabel={getStatusLabel(item.status)}
             />
           )}
           contentContainerStyle={[

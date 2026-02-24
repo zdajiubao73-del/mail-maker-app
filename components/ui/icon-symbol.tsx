@@ -49,6 +49,32 @@ const MAPPING = {
   // Tips / misc
   'lightbulb.fill': 'lightbulb',
   'clock.arrow.circlepath': 'restore',
+
+  // Paywall icons
+  'star.fill': 'star',
+  'checkmark.circle.fill': 'check-circle',
+
+  // Misc
+  'xmark': 'close',
+  'arrow.triangle.2.circlepath': 'sync',
+
+  // History detail
+  'doc.fill': 'description',
+  'doc.on.doc.fill': 'content-copy',
+  'square.and.arrow.up': 'share',
+  'pencil': 'edit',
+  'checkmark': 'check',
+  'arrow.counterclockwise': 'refresh',
+
+  // Contacts
+  'arrow.down.circle': 'download',
+  'exclamationmark.triangle': 'warning',
+  'magnifyingglass': 'search',
+
+  // Settings / Plan
+  'checkmark.seal.fill': 'verified',
+  'gift.fill': 'card-giftcard',
+  'trash.fill': 'delete',
 } as IconMapping;
 
 /**
@@ -68,5 +94,6 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  const mappedName = MAPPING[name];
+  return <MaterialIcons color={color} size={size} name={mappedName ?? 'help-outline'} style={style} />;
 }

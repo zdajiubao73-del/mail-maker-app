@@ -19,12 +19,19 @@ import { useMailStore } from '@/store/use-mail-store';
 import { Colors } from '@/constants/theme';
 import { STATUS_CONFIG, formatFullDate } from '@/constants/mail-status';
 
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'sent': return '送信済み';
+    case 'draft': return '下書き';
+    default: return '生成済み';
+  }
+}
+
 export default function HistoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-
   const item = useMailStore((s) => s.history.find((h) => h.id === id));
   const removeHistory = useMailStore((s) => s.removeHistory);
   const updateHistory = useMailStore((s) => s.updateHistory);
@@ -45,7 +52,7 @@ export default function HistoryDetailScreen() {
   const handleCopy = useCallback(async () => {
     if (!item) return;
     await Clipboard.setStringAsync(`${item.subject}\n\n${item.body}`);
-    Alert.alert('コピー完了', 'メールの内容をクリップボードにコピーしました。');
+    Alert.alert('コピー完了', 'クリップボードにコピーしました');
   }, [item]);
 
   const handleReuse = useCallback(() => {
@@ -63,8 +70,8 @@ export default function HistoryDetailScreen() {
   const handleDelete = useCallback(() => {
     if (!item) return;
     Alert.alert(
-      '削除確認',
-      'この履歴を削除しますか？この操作は取り消せません。',
+      '履歴を削除',
+      'この履歴を削除しますか？',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -107,13 +114,13 @@ export default function HistoryDetailScreen() {
             <IconSymbol name="doc.fill" size={32} color={colors.icon} />
           </View>
           <ThemedText style={styles.emptyTitle}>
-            メールが見つかりませんでした
+            {'履歴が見つかりません'}
           </ThemedText>
           <TouchableOpacity
             style={[styles.backButton, { backgroundColor: colors.tint }]}
             onPress={() => router.back()}
           >
-            <ThemedText style={styles.backButtonText}>戻る</ThemedText>
+            <ThemedText style={styles.backButtonText}>{'戻る'}</ThemedText>
           </TouchableOpacity>
         </View>
       </ThemedView>
@@ -140,7 +147,7 @@ export default function HistoryDetailScreen() {
             >
               <IconSymbol name={statusConfig.icon} size={12} color={statusConfig.color} />
               <ThemedText style={[styles.statusText, { color: statusConfig.color }]}>
-                {statusConfig.label}
+                {getStatusLabel(item.status)}
               </ThemedText>
             </View>
             <ThemedText style={[styles.dateText, { color: colors.textSecondary }]}>
@@ -162,7 +169,7 @@ export default function HistoryDetailScreen() {
         {/* Subject */}
         <View style={styles.fieldGroup}>
           <ThemedText style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-            件名
+            {'件名'}
           </ThemedText>
           <View
             style={[
@@ -178,7 +185,7 @@ export default function HistoryDetailScreen() {
                 style={[styles.subjectInput, { color: colors.text }]}
                 value={editedSubject}
                 onChangeText={setEditedSubject}
-                placeholder="件名を入力"
+                placeholder={'件名を入力'}
                 placeholderTextColor={colors.icon}
                 maxLength={200}
               />
@@ -191,7 +198,7 @@ export default function HistoryDetailScreen() {
         {/* Body */}
         <View style={styles.fieldGroup}>
           <ThemedText style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-            本文
+            {'本文'}
           </ThemedText>
           <View
             style={[
@@ -207,7 +214,7 @@ export default function HistoryDetailScreen() {
                 style={[styles.bodyInput, { color: colors.text }]}
                 value={editedBody}
                 onChangeText={setEditedBody}
-                placeholder="本文を入力"
+                placeholder={'本文を入力'}
                 placeholderTextColor={colors.icon}
                 multiline
                 textAlignVertical="top"
@@ -224,7 +231,7 @@ export default function HistoryDetailScreen() {
           <View style={[styles.sentInfo, { backgroundColor: colors.success + '10' }]}>
             <IconSymbol name="checkmark.circle.fill" size={16} color={colors.success} />
             <ThemedText style={[styles.sentText, { color: colors.success }]}>
-              送信日時: {formatFullDate(item.sentAt)}
+              {`${formatFullDate(item.sentAt)} に送信済み`}
             </ThemedText>
           </View>
         ) : null}
@@ -239,7 +246,7 @@ export default function HistoryDetailScreen() {
             >
               <IconSymbol name="doc.on.doc.fill" size={18} color={colors.tint} />
               <ThemedText style={[styles.quickActionText, { color: colors.tint }]}>
-                コピー
+                {'コピー'}
               </ThemedText>
             </TouchableOpacity>
 
@@ -250,7 +257,7 @@ export default function HistoryDetailScreen() {
             >
               <IconSymbol name="square.and.arrow.up" size={18} color={colors.tint} />
               <ThemedText style={[styles.quickActionText, { color: colors.tint }]}>
-                共有
+                {'共有'}
               </ThemedText>
             </TouchableOpacity>
 
@@ -261,7 +268,7 @@ export default function HistoryDetailScreen() {
             >
               <IconSymbol name="pencil" size={18} color={colors.tint} />
               <ThemedText style={[styles.quickActionText, { color: colors.tint }]}>
-                編集
+                {'編集'}
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -286,7 +293,7 @@ export default function HistoryDetailScreen() {
               activeOpacity={0.7}
             >
               <ThemedText style={[styles.editCancelText, { color: colors.textSecondary }]}>
-                キャンセル
+                {'キャンセル'}
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
@@ -295,7 +302,7 @@ export default function HistoryDetailScreen() {
               activeOpacity={0.7}
             >
               <IconSymbol name="checkmark" size={18} color="#fff" />
-              <ThemedText style={styles.editSaveText}>保存</ThemedText>
+              <ThemedText style={styles.editSaveText}>{'保存'}</ThemedText>
             </TouchableOpacity>
           </View>
         ) : (
@@ -306,7 +313,7 @@ export default function HistoryDetailScreen() {
               activeOpacity={0.6}
             >
               <ThemedText style={[styles.deleteButtonText, { color: colors.danger }]}>
-                履歴を削除
+                {'この履歴を削除'}
               </ThemedText>
             </TouchableOpacity>
 
@@ -316,7 +323,7 @@ export default function HistoryDetailScreen() {
               activeOpacity={0.7}
             >
               <IconSymbol name="arrow.counterclockwise" size={18} color="#fff" />
-              <ThemedText style={styles.reuseButtonText}>このメールを再利用</ThemedText>
+              <ThemedText style={styles.reuseButtonText}>{'このメールを再利用'}</ThemedText>
             </TouchableOpacity>
           </>
         )}

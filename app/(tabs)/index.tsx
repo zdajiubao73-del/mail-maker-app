@@ -21,6 +21,7 @@ type ActionCard = {
   route: '/create/simple' | '/create/detailed' | '/templates';
   accentColor: string;
   accentBg: string;
+  recommended?: boolean;
 };
 
 const TIPS = [
@@ -29,6 +30,7 @@ const TIPS = [
   { icon: 'clock.arrow.circlepath' as const, text: '履歴からワンタップで過去のメールを再利用できます' },
   { icon: 'tray.full.fill' as const, text: 'よく使う設定はプリセットに保存して次回からワンタップで呼び出し' },
   { icon: 'brain.head.profile' as const, text: '学習データ管理であなたの文体をAIが学習し、より自然なメールに' },
+  { icon: 'arrow.triangle.2.circlepath' as const, text: '生成結果がイメージと違っても再生成ボタンで何度でも作り直せます' },
 ];
 
 export default function HomeScreen() {
@@ -56,6 +58,7 @@ export default function HomeScreen() {
       route: '/create/detailed',
       accentColor: colors.accent2,
       accentBg: colors.accent2 + '15',
+      recommended: true,
     },
     {
       title: 'テンプレートから作成',
@@ -65,6 +68,7 @@ export default function HomeScreen() {
       route: '/templates',
       accentColor: colors.accent3,
       accentBg: colors.accent3 + '15',
+      recommended: true,
     },
   ];
 
@@ -106,7 +110,7 @@ export default function HomeScreen() {
           </ThemedText>
         </View>
 
-        {/* Action Cards */}
+        {/* Action Cards — メールを作成する */}
         <View style={styles.cardsContainer}>
           {ACTION_CARDS.map((card) => (
             <TouchableOpacity
@@ -145,6 +149,15 @@ export default function HomeScreen() {
                     <ThemedText type="defaultSemiBold" style={styles.cardTitle}>
                       {card.title}
                     </ThemedText>
+                    {card.recommended && (
+                      <View style={[styles.recommendedBadge, { backgroundColor: colors.danger }]}>
+                        <ThemedText style={styles.recommendedText}>
+                          おすすめ
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.cardSubtitleRow}>
                     <View style={[styles.cardSubtitleBadge, { backgroundColor: card.accentBg }]}>
                       <ThemedText style={[styles.cardSubtitleText, { color: card.accentColor }]}>
                         {card.subtitle}
@@ -164,6 +177,51 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
           ))}
+        </View>
+
+        {/* Customize Section — カスタマイズ */}
+        <View style={styles.sectionHeader2}>
+          <ThemedText style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+            カスタマイズ
+          </ThemedText>
+        </View>
+
+        <View style={styles.toolCardsContainer}>
+          <TouchableOpacity
+            style={[styles.toolCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            activeOpacity={0.65}
+            onPress={() => router.push('/settings/presets' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="よく使う文章 - 文章を保存してワンタップで呼び出し"
+          >
+            <View style={[styles.toolCardIconContainer, { backgroundColor: colors.success + '15' }]}>
+              <IconSymbol name="tray.full.fill" size={20} color={colors.success} />
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.toolCardTitle}>
+              よく使う文章
+            </ThemedText>
+            <ThemedText style={[styles.toolCardDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+              文章を保存してワンタップで呼び出し
+            </ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.toolCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            activeOpacity={0.65}
+            onPress={() => router.push('/settings/learning-data' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="学習データ管理 - あなたの文体をAIが学習してより自然なメールに"
+          >
+            <View style={[styles.toolCardIconContainer, { backgroundColor: colors.info + '15' }]}>
+              <IconSymbol name="brain.head.profile" size={20} color={colors.info} />
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.toolCardTitle}>
+              学習データ管理
+            </ThemedText>
+            <ThemedText style={[styles.toolCardDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+              あなたの文体をAIが学習してより自然なメールに
+            </ThemedText>
+          </TouchableOpacity>
         </View>
 
         {/* Recent History Section */}
@@ -310,6 +368,17 @@ const styles = StyleSheet.create({
   cardAccentStrip: {
     height: 3,
   },
+  recommendedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  recommendedText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
   cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -331,7 +400,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  cardSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   cardTitle: {
     fontSize: 17,
@@ -349,6 +423,36 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 13,
     lineHeight: 18,
+  },
+
+  // Tool Cards
+  toolCardsContainer: {
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  toolCard: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+  },
+  toolCardIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  toolCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  toolCardDescription: {
+    fontSize: 11,
+    lineHeight: 16,
   },
 
   // Recent History

@@ -2,6 +2,8 @@
 // アクセストークンはクライアントから渡される
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { getClientIp, checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { resolveToken } from "../_shared/token-resolver.ts";
 
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
@@ -67,7 +69,8 @@ interface AttachmentData {
 }
 
 interface SendMailRequest {
-  accessToken: string;
+  accessToken?: string;
+  tokenRef?: string;
   to: string;
   subject: string;
   body: string;
@@ -164,16 +167,42 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // レート制限（10 req/min per IP）
+  const clientIp = getClientIp(req);
+  const rateLimit = checkRateLimit(`send-mail:${clientIp}`, {
+    maxRequests: 10,
+    windowMs: 60_000,
+  });
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfterMs, corsHeaders);
+  }
+
   try {
     const body: SendMailRequest = await req.json();
 
-    // バリデーション
-    if (!body.accessToken) {
+    // tokenRef → アクセストークン解決（後方互換: accessToken も引き続きサポート）
+    let accessToken: string;
+    if (body.tokenRef) {
+      try {
+        const resolved = await resolveToken(body.tokenRef);
+        accessToken = resolved.accessToken;
+      } catch (err) {
+        const tokenErr = err as { status?: number; message?: string };
+        return new Response(
+          JSON.stringify({ error: tokenErr.message ?? 'トークンの解決に失敗しました。' }),
+          { status: tokenErr.status ?? 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    } else if (body.accessToken) {
+      accessToken = body.accessToken;
+    } else {
       return new Response(
-        JSON.stringify({ error: 'アクセストークンが必要です' }),
+        JSON.stringify({ error: 'tokenRef または accessToken が必要です' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    // バリデーション
     if (!body.to || !body.subject || !body.body) {
       return new Response(
         JSON.stringify({ error: '宛先、件名、本文は必須です' }),
@@ -184,7 +213,7 @@ Deno.serve(async (req: Request) => {
     // メールアドレス形式検証
     if (!isValidEmail(body.to)) {
       return new Response(
-        JSON.stringify({ error: `無効な宛先メールアドレスです: ${body.to}` }),
+        JSON.stringify({ error: '無効な宛先メールアドレスです。' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -194,7 +223,7 @@ Deno.serve(async (req: Request) => {
       for (const addr of body.cc) {
         if (!isValidEmail(addr)) {
           return new Response(
-            JSON.stringify({ error: `無効なCCメールアドレスです: ${addr}` }),
+            JSON.stringify({ error: '無効なCCメールアドレスです。' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           );
         }
@@ -204,7 +233,7 @@ Deno.serve(async (req: Request) => {
       for (const addr of body.bcc) {
         if (!isValidEmail(addr)) {
           return new Response(
-            JSON.stringify({ error: `無効なBCCメールアドレスです: ${addr}` }),
+            JSON.stringify({ error: '無効なBCCメールアドレスです。' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           );
         }
@@ -260,7 +289,7 @@ Deno.serve(async (req: Request) => {
     // 送信者のメールアドレスを取得（常にGoogleトークンのメールを使用）
     const userInfoRes = await fetch(
       'https://www.googleapis.com/oauth2/v2/userinfo',
-      { headers: { Authorization: `Bearer ${body.accessToken}` } },
+      { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
     if (!userInfoRes.ok) {
@@ -290,7 +319,7 @@ Deno.serve(async (req: Request) => {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${body.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ raw: rawMessage }),

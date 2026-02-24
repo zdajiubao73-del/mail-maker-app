@@ -2,6 +2,7 @@
 // OpenAI GPT API を使った日本語メール生成 Edge Function
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { getClientIp, checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
@@ -627,6 +628,16 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: "認証が必要です。" }),
       { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+  }
+
+  // レート制限（20 req/min per IP）
+  const clientIp = getClientIp(req);
+  const rateLimit = checkRateLimit(`generate-mail:${clientIp}`, {
+    maxRequests: 20,
+    windowMs: 60_000,
+  });
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfterMs, corsHeaders);
   }
 
   // リクエストサイズ制限

@@ -1,12 +1,14 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import {
   Alert,
+  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -18,17 +20,15 @@ import {
   getAuthRequestConfig,
   discovery,
   exchangeCodeForTokens,
-  clearTokens,
   useAuthRequest,
 } from '@/lib/google-auth';
-import { clearTokens as clearAppleTokens } from '@/lib/apple-auth';
 import {
   getAuthRequestConfig as getMicrosoftAuthRequestConfig,
   discovery as microsoftDiscovery,
   exchangeCodeForTokens as exchangeMicrosoftCodeForTokens,
-  clearTokens as clearMicrosoftTokens,
   useAuthRequest as useMicrosoftAuthRequest,
 } from '@/lib/microsoft-auth';
+import { deleteAccountLocally } from '@/lib/data-cleaner';
 import type { AuthStatus, MailAccount, MailAccountType } from '@/types/user';
 
 /* -------------------------------------------------------------------------- */
@@ -46,20 +46,6 @@ const PROVIDER_CONFIG: Record<
   icloud: { label: 'iCloud', color: '#3693F5' },
 };
 
-/** Auth status badge config */
-const STATUS_CONFIG: Record<
-  AuthStatus,
-  { label: string; color: string; bgColor: string }
-> = {
-  authenticated: { label: '認証済み', color: '#34C759', bgColor: '#34C75920' },
-  unauthenticated: {
-    label: '未認証',
-    color: '#FF9500',
-    bgColor: '#FF950020',
-  },
-  expired: { label: '期限切れ', color: '#FF3B30', bgColor: '#FF3B3020' },
-};
-
 /* -------------------------------------------------------------------------- */
 /*  Component                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -68,13 +54,28 @@ export default function AccountScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const router = useRouter();
+
+  const mailAccounts = useAuthStore((s) => s.mailAccounts);
   const addMailAccount = useAuthStore((s) => s.addMailAccount);
   const removeMailAccount = useAuthStore((s) => s.removeMailAccount);
 
   const cardBg = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
   const dividerColor = colorScheme === 'dark' ? '#2C2F33' : '#E5E5EA';
+
+  /** Auth status badge config */
+  const statusConfig: Record<
+    AuthStatus,
+    { label: string; color: string; bgColor: string }
+  > = useMemo(() => ({
+    authenticated: { label: '認証済み', color: '#34C759', bgColor: '#34C75920' },
+    unauthenticated: {
+      label: '未認証',
+      color: '#FF9500',
+      bgColor: '#FF950020',
+    },
+    expired: { label: '期限切れ', color: '#FF3B30', bgColor: '#FF3B3020' },
+  }), []);
 
   // Google OAuth のセットアップ
   const authConfig = getAuthRequestConfig();
@@ -110,9 +111,9 @@ export default function AccountScreen() {
           email: tokens.email,
           authStatus: 'authenticated',
         });
-        Alert.alert('連携完了', `${tokens.email} でGmailアカウントを連携しました。`);
+        Alert.alert('連携完了', `Gmailアカウント (${tokens.email}) を連携しました`);
       } catch {
-        Alert.alert('エラー', 'Gmailの連携に失敗しました。もう一度お試しください。');
+        Alert.alert('エラー', 'Gmail連携に失敗しました');
       }
     })();
   }, [response]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -135,9 +136,9 @@ export default function AccountScreen() {
           email: tokens.email,
           authStatus: 'authenticated',
         });
-        Alert.alert('連携完了', `${tokens.email} でOutlookアカウントを連携しました。`);
+        Alert.alert('連携完了', `Outlookアカウント (${tokens.email}) を連携しました`);
       } catch {
-        Alert.alert('エラー', 'Outlookの連携に失敗しました。もう一度お試しください。');
+        Alert.alert('エラー', 'Outlook連携に失敗しました');
       }
     })();
   }, [msResponse]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -146,38 +147,34 @@ export default function AccountScreen() {
 
   const handleAddGmail = useCallback(async () => {
     if (hasGoogleClientId) {
-      // 実際のOAuth認証フロー
       await promptAsync();
     } else {
-      // Google Client ID 未設定時はモック追加
       addMailAccount({
         id: `gmail-${Date.now()}`,
         type: 'gmail',
         email: `user${Math.floor(Math.random() * 1000)}@gmail.com`,
         authStatus: 'authenticated',
       });
-      Alert.alert('デモモード', 'Google Client IDが未設定のため、デモアカウントを追加しました。');
+      Alert.alert('デモモード', 'デモ用Gmailアカウントを追加しました');
     }
   }, [hasGoogleClientId, promptAsync, addMailAccount]);
 
   const handleAddOutlook = useCallback(async () => {
     if (hasMicrosoftClientId) {
-      // 実際のOAuth認証フロー
       await msPromptAsync();
     } else {
-      // Microsoft Client ID 未設定時はモック追加
       addMailAccount({
         id: `outlook-${Date.now()}`,
         type: 'outlook',
         email: `user${Math.floor(Math.random() * 1000)}@outlook.com`,
         authStatus: 'authenticated',
       });
-      Alert.alert('デモモード', 'Microsoft Client IDが未設定のため、デモアカウントを追加しました。');
+      Alert.alert('デモモード', 'デモ用Outlookアカウントを追加しました');
     }
   }, [hasMicrosoftClientId, msPromptAsync, addMailAccount]);
 
   const handleAddAccount = () => {
-    Alert.alert('アカウントを追加', '連携するメールサービスを選択してください', [
+    Alert.alert('メールアカウントを追加', '連携するメールサービスを選択してください', [
       {
         text: 'Gmail',
         onPress: handleAddGmail,
@@ -192,8 +189,8 @@ export default function AccountScreen() {
 
   const handleRemoveAccount = (account: MailAccount) => {
     Alert.alert(
-      'アカウントを削除',
-      `${account.email} の連携を解除しますか？`,
+      'メールアカウントを削除',
+      `${account.email}を削除しますか？`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -205,41 +202,63 @@ export default function AccountScreen() {
     );
   };
 
-  const handleLogout = () => {
-    Alert.alert('ログアウト', 'ログアウトしてもよろしいですか？', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: 'ログアウト',
-        style: 'destructive',
-        onPress: async () => {
-          await clearTokens();
-          await clearMicrosoftTokens();
-          await clearAppleTokens();
-          logout();
+  const handleDeleteData = useCallback(() => {
+    Alert.alert(
+      'データをリセット',
+      'すべてのデータが削除されます。この操作は取り消せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'リセット',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              '最終確認',
+              '本当にすべてのデータを削除しますか？',
+              [
+                { text: 'キャンセル', style: 'cancel' },
+                {
+                  text: '完全に削除する',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await deleteAccountLocally();
+
+                      const subject = encodeURIComponent('データ削除リクエスト');
+                      const body = encodeURIComponent('サーバー上のデータの削除をリクエストします。');
+                      const mailtoUrl = `mailto:apuriyong500@gmail.com?subject=${subject}&body=${body}`;
+
+                      Alert.alert(
+                        '端末データ削除完了',
+                        '端末内のデータを削除しました。サーバー上のデータの削除をご希望の場合は、メールでリクエストしてください。',
+                        [
+                          {
+                            text: 'あとで',
+                            onPress: () => router.replace('/'),
+                          },
+                          {
+                            text: 'メールで依頼',
+                            onPress: async () => {
+                              await Linking.openURL(mailtoUrl);
+                              router.replace('/');
+                            },
+                          },
+                        ],
+                      );
+                    } catch {
+                      Alert.alert('エラー', 'データ削除に失敗しました');
+                    }
+                  },
+                },
+              ],
+            );
+          },
         },
-      },
-    ]);
-  };
+      ],
+    );
+  }, [router]);
 
   /* ---- Render ------------------------------------------------------------ */
-
-  if (!user) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.center}>
-          <ThemedText>ログインしていません</ThemedText>
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
-
-  const planBadgeConfig = {
-    subscribed: { label: 'サブスクリプション', color: '#FFD60A', bgColor: '#FFD60A20' },
-    trial: { label: 'トライアル', color: '#34C759', bgColor: '#34C75920' },
-    free: { label: '未登録', color: '#8E8E93', bgColor: '#8E8E9320' },
-    expired: { label: '期限切れ', color: '#FF3B30', bgColor: '#FF3B3020' },
-  };
-  const badge = planBadgeConfig[user.plan] ?? planBadgeConfig.free;
 
   return (
     <ThemedView style={styles.container}>
@@ -248,60 +267,15 @@ export default function AccountScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Profile Section ──────────────────────────────── */}
-          <View style={styles.sectionHeader}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              プロフィール
-            </ThemedText>
-          </View>
-
-          <View style={[styles.card, { backgroundColor: cardBg }]}>
-            {/* Display name */}
-            <View style={styles.row}>
-              <View
-                style={[
-                  styles.avatarCircle,
-                  { backgroundColor: colors.tint + '20' },
-                ]}
-              >
-                <IconSymbol
-                  name="person.fill"
-                  size={28}
-                  color={colors.tint}
-                />
-              </View>
-              <View style={styles.rowText}>
-                <ThemedText type="defaultSemiBold">
-                  {user.displayName}
-                </ThemedText>
-                <View
-                  style={[
-                    styles.planBadge,
-                    { backgroundColor: badge.bgColor },
-                  ]}
-                >
-                  <ThemedText
-                    style={[
-                      styles.planBadgeText,
-                      { color: badge.color },
-                    ]}
-                  >
-                    {badge.label}
-                  </ThemedText>
-                </View>
-              </View>
-            </View>
-          </View>
-
           {/* ── Mail Accounts Section ────────────────────────── */}
           <View style={styles.sectionHeader}>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              メール連携
+              メールアカウント
             </ThemedText>
           </View>
 
           <View style={[styles.card, { backgroundColor: cardBg }]}>
-            {user.mailAccounts.length === 0 ? (
+            {mailAccounts.length === 0 ? (
               <View style={styles.emptyState}>
                 <IconSymbol
                   name="envelope.badge.fill"
@@ -309,13 +283,13 @@ export default function AccountScreen() {
                   color={colors.icon}
                 />
                 <ThemedText style={styles.emptyText}>
-                  連携済みのアカウントはありません
+                  メールアカウントが未登録です
                 </ThemedText>
               </View>
             ) : (
-              user.mailAccounts.map((account, index) => {
+              mailAccounts.map((account, index) => {
                 const provider = PROVIDER_CONFIG[account.type];
-                const status = STATUS_CONFIG[account.authStatus];
+                const status = statusConfig[account.authStatus];
                 return (
                   <TouchableOpacity
                     key={account.id}
@@ -323,7 +297,7 @@ export default function AccountScreen() {
                     onLongPress={() => handleRemoveAccount(account)}
                     style={[
                       styles.mailRow,
-                      index < user.mailAccounts.length - 1 && {
+                      index < mailAccounts.length - 1 && {
                         borderBottomWidth: StyleSheet.hairlineWidth,
                         borderBottomColor: dividerColor,
                       },
@@ -393,23 +367,20 @@ export default function AccountScreen() {
             長押しでアカウントを削除できます
           </ThemedText>
 
-          {/* ── Account Actions ──────────────────────────────── */}
-          <View style={styles.sectionHeader}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              アカウント操作
+          {/* ── Data Reset ────────────────────────────────────── */}
+          <TouchableOpacity
+            style={styles.deleteAccountButton}
+            activeOpacity={0.7}
+            onPress={handleDeleteData}
+          >
+            <IconSymbol name="trash.fill" size={16} color="#FF3B30" />
+            <ThemedText style={styles.deleteAccountText}>
+              データをリセット
             </ThemedText>
-          </View>
-
-          <View style={[styles.card, { backgroundColor: cardBg }]}>
-            <TouchableOpacity
-              style={styles.logoutButton}
-              activeOpacity={0.7}
-              onPress={handleLogout}
-            >
-              <IconSymbol name="rectangle.portrait.and.arrow.right" size={22} color="#FF3B30" />
-              <ThemedText style={styles.logoutText}>ログアウト</ThemedText>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
+          <ThemedText style={[styles.deleteAccountHint, { color: colors.icon }]}>
+            すべてのローカルデータが完全に削除されます
+          </ThemedText>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -426,11 +397,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -459,35 +425,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-  },
-
-  /* Profile row */
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-  },
-  avatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  rowText: {
-    flex: 1,
-    gap: 6,
-  },
-  planBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  planBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
 
   /* Mail rows */
@@ -559,17 +496,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
 
-  /* Logout */
-  logoutButton: {
+  /* Delete data */
+  deleteAccountButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
+    marginTop: 32,
+    gap: 6,
   },
-  logoutText: {
+  deleteAccountText: {
     color: '#FF3B30',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  deleteAccountHint: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 20,
   },
 });

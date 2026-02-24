@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   useColorScheme,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -16,6 +17,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ContactPickerModal } from '@/components/contact-picker-modal';
+import { PaywallModal } from '@/components/paywall-modal';
 import { useMailStore } from '@/store/use-mail-store';
 import { usePlanStore } from '@/store/use-plan-store';
 import { Colors } from '@/constants/theme';
@@ -35,7 +37,6 @@ export default function TemplateCreateScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-
   const template = id ? getTemplateById(id) : undefined;
 
   const {
@@ -56,6 +57,7 @@ export default function TemplateCreateScreen() {
   const [recipientName, setRecipientName] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
 
   const handleSelectFromContacts = useCallback(() => {
     setIsContactPickerVisible(true);
@@ -70,12 +72,13 @@ export default function TemplateCreateScreen() {
   const handleGenerate = useCallback(async () => {
     if (!template) return;
 
-    const { canGenerate, isSubscribed } = usePlanStore.getState();
+    const { canUseApp, canGenerate } = usePlanStore.getState();
+    if (!canUseApp()) {
+      setShowPaywallModal(true);
+      return;
+    }
     if (!canGenerate()) {
-      const message = isSubscribed()
-        ? '今月の生成回数上限に達しました。来月まで少々お待ちください。'
-        : '本日の生成回数上限に達しました。サブスクリプションに登録すると月500回まで生成できます。';
-      Alert.alert('生成回数上限', message);
+      Alert.alert('生成上限に達しました', '今月の生成上限に達しました。来月までお待ちください。');
       return;
     }
 
@@ -102,8 +105,8 @@ export default function TemplateCreateScreen() {
 
     try {
       setIsGenerating(true);
-      const learningProfile = useLearningStore.getState().profile;
-      const learningContext = learningProfile ? buildLearningContext(learningProfile) : undefined;
+      const { profile: learningProfile, learningEnabled } = useLearningStore.getState();
+      const learningContext = learningEnabled && learningProfile ? buildLearningContext(learningProfile) : undefined;
       const mail = await generateMail({
         recipient,
         purposeCategory: template.category,
@@ -117,7 +120,7 @@ export default function TemplateCreateScreen() {
       usePlanStore.getState().incrementGenerationCount();
       router.push('/preview');
     } catch {
-      Alert.alert('エラー', 'メールの生成に失敗しました。もう一度お試しください。');
+      Alert.alert('生成エラー', 'メールの生成に失敗しました。もう一度お試しください。');
     } finally {
       setIsGenerating(false);
     }
@@ -146,13 +149,13 @@ export default function TemplateCreateScreen() {
         <View style={styles.emptyContainer}>
           <MaterialIcons name="error-outline" size={48} color={colors.icon} />
           <ThemedText style={styles.emptyTitle}>
-            テンプレートが見つかりませんでした
+            {'テンプレートが見つかりません'}
           </ThemedText>
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: colors.tint }]}
             onPress={() => router.back()}
           >
-            <ThemedText style={styles.backBtnText}>戻る</ThemedText>
+            <ThemedText style={styles.backBtnText}>{'戻る'}</ThemedText>
           </TouchableOpacity>
         </View>
       </ThemedView>
@@ -161,6 +164,11 @@ export default function TemplateCreateScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -180,7 +188,7 @@ export default function TemplateCreateScreen() {
           <View style={styles.templateHeader}>
             <MaterialIcons name="description" size={20} color={colors.tint} />
             <ThemedText style={[styles.templateLabel, { color: colors.tint }]}>
-              テンプレート
+              {'テンプレート'}
             </ThemedText>
           </View>
           <ThemedText type="defaultSemiBold" style={styles.templateName}>
@@ -215,7 +223,7 @@ export default function TemplateCreateScreen() {
               <ThemedText style={styles.stepCircleText}>1</ThemedText>
             </View>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              送信先（任意）
+              {'送信先（任意）'}
             </ThemedText>
           </View>
           <TextInput
@@ -227,7 +235,7 @@ export default function TemplateCreateScreen() {
                 backgroundColor: colors.surface,
               },
             ]}
-            placeholder="相手のお名前"
+            placeholder="宛名（例: 田中太郎）"
             placeholderTextColor={colors.icon}
             value={recipientName}
             onChangeText={setRecipientName}
@@ -243,7 +251,7 @@ export default function TemplateCreateScreen() {
                 marginTop: 8,
               },
             ]}
-            placeholder="メールアドレス"
+            placeholder="メールアドレス（例: tanaka@example.com）"
             placeholderTextColor={colors.icon}
             value={recipientEmail}
             onChangeText={setRecipientEmail}
@@ -257,7 +265,7 @@ export default function TemplateCreateScreen() {
             activeOpacity={0.7}
           >
             <ThemedText style={[styles.contactButtonText, { color: colors.tint }]}>
-              連絡先から選択
+              {'連絡先から選択'}
             </ThemedText>
           </TouchableOpacity>
         </View>
@@ -274,11 +282,11 @@ export default function TemplateCreateScreen() {
               <ThemedText style={styles.stepCircleText}>2</ThemedText>
             </View>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              相手との関係性
+              {'送信相手との関係性'}
             </ThemedText>
           </View>
           <ThemedText style={[styles.sectionHint, { color: colors.textSecondary }]}>
-            関係性に応じて敬語レベルが自動調整されます
+            {'敬語レベルが自動調整されます'}
           </ThemedText>
           <View style={styles.chipContainer}>
             {RELATIONSHIPS.map((rel) => {
@@ -325,11 +333,11 @@ export default function TemplateCreateScreen() {
               <ThemedText style={styles.stepCircleText}>3</ThemedText>
             </View>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              要点入力（任意）
+              {'伝えたいポイント（任意）'}
             </ThemedText>
           </View>
           <ThemedText style={[styles.sectionHint, { color: colors.textSecondary }]}>
-            伝えたいポイントがあれば入力してください
+            {'メールに含めたい具体的な内容があれば入力してください'}
           </ThemedText>
           <TextInput
             style={[
@@ -341,7 +349,7 @@ export default function TemplateCreateScreen() {
                 backgroundColor: colors.surface,
               },
             ]}
-            placeholder="例: 来週の月曜日までに提出してほしい"
+            placeholder="例: 来週の会議の日程を調整したい..."
             placeholderTextColor={colors.icon}
             value={keyPoints}
             onChangeText={setKeyPoints}
@@ -377,23 +385,28 @@ export default function TemplateCreateScreen() {
           {isGenerating ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="#FFFFFF" size="large" />
-              <ThemedText style={styles.generateButtonText}>生成中...</ThemedText>
+              <ThemedText style={styles.generateButtonText}>{'メール生成中...'}</ThemedText>
             </View>
           ) : (
             <View style={styles.loadingContainer}>
               <MaterialIcons name="auto-awesome" size={22} color="#FFFFFF" />
               <ThemedText style={styles.generateButtonText}>
-                テンプレートからメール生成
+                {'メールを生成する'}
               </ThemedText>
             </View>
           )}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <ContactPickerModal
         visible={isContactPickerVisible}
         onClose={() => setIsContactPickerVisible(false)}
         onSelect={handleContactSelected}
+      />
+      <PaywallModal
+        visible={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
       />
     </ThemedView>
   );
@@ -401,6 +414,9 @@ export default function TemplateCreateScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardAvoidingView: {
     flex: 1,
   },
   scrollView: {

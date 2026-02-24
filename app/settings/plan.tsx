@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -24,16 +25,8 @@ import {
   isPurchasesConfigured,
 } from '@/lib/purchases';
 
-const FEATURES = [
-  `AIメール自動生成（月${PREMIUM_MONTHLY_LIMIT}回まで）`,
-  '全トーン設定',
-  '全テンプレート利用可能',
-  '履歴保存（無制限）',
-  'メール直接送信',
-  '広告なし',
-];
-
 export default function PlanScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
@@ -45,6 +38,7 @@ export default function PlanScreen() {
   const [packages, setPackages] = useState<any[]>([]);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [trialPeriodText, setTrialPeriodText] = useState('14日間');
 
   const cardBg = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
 
@@ -52,17 +46,36 @@ export default function PlanScreen() {
 
   const monthlyPkg = packages.find((p: any) => p.packageType === 'MONTHLY');
   const annualPkg = packages.find((p: any) => p.packageType === 'ANNUAL');
-  const actualMonthlyPrice = monthlyPkg?.product?.price ?? MONTHLY_PRICE;
   const actualYearlyPrice = annualPkg?.product?.price ?? YEARLY_PRICE;
-
   const monthlyPerYear = Math.round(actualYearlyPrice / 12);
-  const savingsPercent = Math.round((1 - actualYearlyPrice / (actualMonthlyPrice * 12)) * 100);
+
+  const features = useMemo(() => [
+    `月${PREMIUM_MONTHLY_LIMIT}回までメール生成`,
+    '全テンプレート利用可能',
+    '直接メール送信',
+    '学習データ機能',
+  ], []);
 
   useEffect(() => {
     if (!configured) return;
     (async () => {
       const pkgs = await getOfferings();
       setPackages(pkgs);
+
+      // 実際のトライアル期間を製品情報から取得
+      const monthlyProduct = pkgs.find((p: any) => p.packageType === 'MONTHLY') as any;
+      const annualProduct = pkgs.find((p: any) => p.packageType === 'ANNUAL') as any;
+      const introPrice = monthlyProduct?.product?.introPrice ?? annualProduct?.product?.introPrice;
+      if (introPrice?.periodNumberOfUnits && introPrice?.periodUnit) {
+        const units = introPrice.periodNumberOfUnits;
+        const unit = introPrice.periodUnit as string;
+        const unitLabel =
+          unit === 'DAY' ? '日間' :
+          unit === 'WEEK' ? '週間' :
+          unit === 'MONTH' ? 'ヶ月間' :
+          '年間';
+        setTrialPeriodText(`${units}${unitLabel}`);
+      }
     })();
   }, [configured]);
 
@@ -72,7 +85,7 @@ export default function PlanScreen() {
       const result = await purchasePackage(pkg);
       if (result.success) {
         await syncWithRevenueCat();
-        Alert.alert('購入完了', 'サブスクリプションが有効になりました。');
+        Alert.alert('購入完了', 'プレミアムプランへのアップグレードが完了しました');
       } else if (result.error && result.error !== 'cancelled') {
         Alert.alert('エラー', result.error);
       }
@@ -87,11 +100,11 @@ export default function PlanScreen() {
       const result = await restorePurchases();
       if (result.isPremium) {
         await syncWithRevenueCat();
-        Alert.alert('復元完了', 'サブスクリプションを復元しました。');
+        Alert.alert('復元完了', '購入を復元しました');
       } else if (result.success) {
-        Alert.alert('復元結果', '復元可能な購入が見つかりませんでした。');
+        Alert.alert('復元結果', '復元可能な購入が見つかりませんでした');
       } else {
-        Alert.alert('エラー', result.error ?? '購入の復元に失敗しました。');
+        Alert.alert('エラー', result.error ?? '復元に失敗しました');
       }
     } finally {
       setIsRestoring(false);
@@ -108,7 +121,7 @@ export default function PlanScreen() {
           {/* Current Plan Status */}
           <View style={styles.statusContainer}>
             <ThemedText style={[styles.statusLabel, { color: colors.textSecondary }]}>
-              現在のステータス
+              現在のプラン
             </ThemedText>
             <View
               style={[
@@ -119,9 +132,7 @@ export default function PlanScreen() {
                       ? '#FFD60A'
                       : currentPlan === 'trial'
                         ? '#34C75920'
-                        : currentPlan === 'free'
-                          ? '#8E8E9320'
-                          : '#FF3B3020',
+                        : '#FF3B3020',
                 },
               ]}
             >
@@ -137,26 +148,22 @@ export default function PlanScreen() {
                         ? '#1A1A1A'
                         : currentPlan === 'trial'
                           ? '#34C759'
-                          : currentPlan === 'free'
-                            ? '#8E8E93'
-                            : '#FF3B30',
+                          : '#FF3B30',
                   },
                 ]}
               >
                 {currentPlan === 'subscribed'
-                  ? 'サブスクリプション'
+                  ? 'プレミアム'
                   : currentPlan === 'trial'
-                    ? `トライアル中（残り${getTrialDaysRemaining()}日）`
-                    : currentPlan === 'free'
-                      ? '未登録'
-                      : '期限切れ'}
+                    ? 'トライアル'
+                    : '未登録'}
               </ThemedText>
             </View>
             {isSubscribed() && (
               <View style={styles.activeNote}>
                 <IconSymbol name="checkmark.circle.fill" size={18} color="#34C759" />
                 <ThemedText style={styles.activeNoteText}>
-                  すべての機能をご利用いただけます
+                  すべての機能が利用可能です
                 </ThemedText>
               </View>
             )}
@@ -165,17 +172,17 @@ export default function PlanScreen() {
           {/* Features */}
           <View style={styles.sectionHeader}>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              サブスクリプション機能
+              プレミアム機能
             </ThemedText>
           </View>
 
           <View style={[styles.card, { backgroundColor: cardBg }]}>
-            {FEATURES.map((feature, index) => (
+            {features.map((feature, index) => (
               <View
                 key={feature}
                 style={[
                   styles.featureRow,
-                  index < FEATURES.length - 1 && styles.featureRowBorder,
+                  index < features.length - 1 && styles.featureRowBorder,
                 ]}
               >
                 <IconSymbol name="checkmark.circle.fill" size={20} color="#34C759" />
@@ -205,6 +212,11 @@ export default function PlanScreen() {
                   disabled={isPurchasing || !(configured && packages.length > 0)}
                   activeOpacity={0.7}
                 >
+                  <View style={styles.trialBadge}>
+                    <ThemedText style={styles.trialBadgeText}>
+                      {`${trialPeriodText}無料`}
+                    </ThemedText>
+                  </View>
                   <ThemedText style={[styles.priceLabel, { color: colors.textSecondary }]}>
                     月額プラン
                   </ThemedText>
@@ -233,9 +245,9 @@ export default function PlanScreen() {
                   disabled={isPurchasing || !(configured && packages.length > 0)}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.saveBadge}>
-                    <ThemedText style={styles.saveBadgeText}>
-                      {savingsPercent}%お得
+                  <View style={styles.trialBadge}>
+                    <ThemedText style={styles.trialBadgeText}>
+                      {`${trialPeriodText}無料`}
                     </ThemedText>
                   </View>
                   <ThemedText style={[styles.priceLabel, { color: colors.textSecondary }]}>
@@ -250,9 +262,22 @@ export default function PlanScreen() {
                     </ThemedText>
                   </View>
                   <ThemedText style={[styles.priceNote, { color: '#34C759' }]}>
-                    月あたり¥{monthlyPerYear.toLocaleString()}
+                    {`月あたり ¥${monthlyPerYear.toLocaleString()}`}
                   </ThemedText>
                 </TouchableOpacity>
+              </View>
+
+              {/* Trial info */}
+              <View style={[styles.trialInfoCard, { backgroundColor: '#34C75910' }]}>
+                <IconSymbol name="gift.fill" size={20} color="#34C759" />
+                <View style={styles.trialInfoContent}>
+                  <ThemedText style={styles.trialInfoTitle}>
+                    {`最初の${trialPeriodText}は無料!`}
+                  </ThemedText>
+                  <ThemedText style={[styles.trialInfoText, { color: colors.textSecondary }]}>
+                    どちらのプランも{trialPeriodText}の無料トライアル付き。期間中はすべての機能をお試しいただけます。トライアル期間中にキャンセルした場合、料金は一切かかりません。トライアル終了後、選択したプランの料金で自動更新されます。
+                  </ThemedText>
+                </View>
               </View>
 
               {/* CTA */}
@@ -269,7 +294,7 @@ export default function PlanScreen() {
                   } else {
                     Alert.alert(
                       'サブスクリプション',
-                      'App Store での課金準備が完了していません。アプリを再起動するか、しばらくしてからお試しください。',
+                      '準備中です。しばらくお待ちください。',
                     );
                   }
                 }}
@@ -279,7 +304,7 @@ export default function PlanScreen() {
                   <ActivityIndicator color="#1A1A1A" />
                 ) : (
                   <ThemedText style={styles.subscribeButtonText}>
-                    サブスクリプションに登録
+                    {`${trialPeriodText}無料で試す`}
                   </ThemedText>
                 )}
               </TouchableOpacity>
@@ -293,7 +318,7 @@ export default function PlanScreen() {
                   } else {
                     Alert.alert(
                       'サブスクリプション',
-                      'App Store での課金準備が完了していません。アプリを再起動するか、しばらくしてからお試しください。',
+                      '準備中です。しばらくお待ちください。',
                     );
                   }
                 }}
@@ -304,7 +329,7 @@ export default function PlanScreen() {
                   <ActivityIndicator size="small" color={colors.textSecondary} />
                 ) : (
                   <ThemedText style={[styles.restoreButtonText, { color: colors.textSecondary }]}>
-                    購入を復元する
+                    購入を復元
                   </ThemedText>
                 )}
               </TouchableOpacity>
@@ -338,7 +363,7 @@ export default function PlanScreen() {
             <View style={[styles.infoCard, { backgroundColor: cardBg }]}>
               <IconSymbol name="info.circle.fill" size={20} color={colors.tint} />
               <ThemedText style={[styles.infoText, { color: colors.textSecondary }]}>
-                無料トライアル中です（残り{getTrialDaysRemaining()}日）。トライアル終了後、自動的に有料サブスクリプションに移行します。キャンセルはApp Storeの設定から行えます。
+                {`トライアル期間中です（残り${getTrialDaysRemaining()}日）。期間終了後はサブスクリプションが自動開始されます。`}
               </ThemedText>
             </View>
           )}
@@ -346,9 +371,30 @@ export default function PlanScreen() {
           {/* Apple subscription notice */}
           {!isSubscribed() && (
             <ThemedText style={[styles.subscriptionNotice, { color: colors.icon }]}>
-              サブスクリプションは確認後にApple IDアカウントに請求されます。現在の期間が終了する24時間前までにキャンセルしない限り、自動更新されます。サブスクリプション管理・キャンセルはApple IDの設定から行えます。
+              サブスクリプションはApple IDアカウントに課金されます。最初の{trialPeriodText}は無料トライアル期間です。トライアル期間中にキャンセルすれば料金は発生しません。現在の期間が終了する24時間前までにキャンセルしない限り、自動更新されます。サブスクリプション管理はApp Storeの設定から行えます。
             </ThemedText>
           )}
+
+          {/* Legal links */}
+          <View style={styles.legalLinks}>
+            <TouchableOpacity
+              onPress={() => router.push('/settings/terms')}
+              activeOpacity={0.6}
+            >
+              <ThemedText style={[styles.legalLinkText, { color: colors.tint }]}>
+                利用規約
+              </ThemedText>
+            </TouchableOpacity>
+            <ThemedText style={[styles.legalSeparator, { color: colors.textSecondary }]}>|</ThemedText>
+            <TouchableOpacity
+              onPress={() => router.push('/settings/privacy')}
+              activeOpacity={0.6}
+            >
+              <ThemedText style={[styles.legalLinkText, { color: colors.tint }]}>
+                プライバシーポリシー
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -462,6 +508,20 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFD60A',
   },
+  trialBadge: {
+    position: 'absolute',
+    top: -10,
+    right: 12,
+    backgroundColor: '#34C759',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  trialBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   saveBadge: {
     position: 'absolute',
     top: -10,
@@ -497,6 +557,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginTop: 6,
+  },
+
+  /* Trial info */
+  trialInfoCard: {
+    flexDirection: 'row',
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  trialInfoContent: {
+    flex: 1,
+  },
+  trialInfoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#34C759',
+    marginBottom: 4,
+  },
+  trialInfoText: {
+    fontSize: 13,
+    lineHeight: 19,
   },
 
   /* CTA */
@@ -577,5 +660,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     paddingHorizontal: 8,
+  },
+
+  /* Legal links */
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 8,
+  },
+  legalLinkText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  legalSeparator: {
+    fontSize: 13,
   },
 });

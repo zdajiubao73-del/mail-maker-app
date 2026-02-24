@@ -6,8 +6,11 @@ import { File as ExpoFile } from 'expo-file-system';
 import type { MailAccount } from '@/types/user';
 import type { Attachment } from '@/types/mail';
 import { supabase } from '@/lib/supabase';
-import { getValidAccessToken } from '@/lib/google-auth';
-import { getValidAccessToken as getMicrosoftAccessToken } from '@/lib/microsoft-auth';
+import { getValidAccessToken, getTokenRef as getGoogleTokenRef } from '@/lib/google-auth';
+import {
+  getValidAccessToken as getMicrosoftAccessToken,
+  getTokenRef as getMicrosoftTokenRef,
+} from '@/lib/microsoft-auth';
 import { isValidEmail, validateRecipientCounts } from '@/lib/validation';
 
 const MAX_ATTACHMENT_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB
@@ -51,7 +54,7 @@ function validateInput(params: SendMailParams): string | null {
   if (accountError) return accountError;
 
   if (!isValidEmail(params.to)) {
-    return `無効なメールアドレスです: ${params.to}`;
+    return '無効な宛先メールアドレスです。';
   }
   if (!params.subject.trim()) {
     return '件名が入力されていません。';
@@ -61,12 +64,12 @@ function validateInput(params: SendMailParams): string | null {
   }
   if (params.cc) {
     for (const ccAddr of params.cc) {
-      if (!isValidEmail(ccAddr)) return `無効なCCメールアドレスです: ${ccAddr}`;
+      if (!isValidEmail(ccAddr)) return '無効なCCメールアドレスです。';
     }
   }
   if (params.bcc) {
     for (const bccAddr of params.bcc) {
-      if (!isValidEmail(bccAddr)) return `無効なBCCメールアドレスです: ${bccAddr}`;
+      if (!isValidEmail(bccAddr)) return '無効なBCCメールアドレスです。';
     }
   }
 
@@ -122,9 +125,11 @@ async function readAttachmentsAsBase64(
  * Gmail API 経由でメールを送信する
  */
 async function sendViaGmail(params: SendMailParams): Promise<SendMailResult> {
-  const accessToken = await getValidAccessToken();
+  // tokenRef を優先、なければ accessToken にフォールバック
+  const tokenRef = await getGoogleTokenRef();
+  const accessToken = tokenRef ? null : await getValidAccessToken();
 
-  if (!accessToken) {
+  if (!tokenRef && !accessToken) {
     return {
       success: false,
       error: 'Gmailの認証が切れています。設定画面から再認証してください。',
@@ -136,16 +141,24 @@ async function sendViaGmail(params: SendMailParams): Promise<SendMailResult> {
     attachmentData = await readAttachmentsAsBase64(params.attachments);
   }
 
+  const requestBody: Record<string, unknown> = {
+    to: params.to,
+    subject: params.subject,
+    body: params.body,
+    cc: params.cc,
+    bcc: params.bcc,
+    attachments: attachmentData,
+  };
+
+  // tokenRef があればそれを送信、なければ accessToken（後方互換）
+  if (tokenRef) {
+    requestBody.tokenRef = tokenRef;
+  } else {
+    requestBody.accessToken = accessToken;
+  }
+
   const { data, error } = await supabase.functions.invoke('send-mail', {
-    body: {
-      accessToken,
-      to: params.to,
-      subject: params.subject,
-      body: params.body,
-      cc: params.cc,
-      bcc: params.bcc,
-      attachments: attachmentData,
-    },
+    body: requestBody,
   });
 
   if (error) {
@@ -165,9 +178,11 @@ async function sendViaGmail(params: SendMailParams): Promise<SendMailResult> {
  * Microsoft Graph API 経由でメールを送信する
  */
 async function sendViaOutlook(params: SendMailParams): Promise<SendMailResult> {
-  const accessToken = await getMicrosoftAccessToken();
+  // tokenRef を優先、なければ accessToken にフォールバック
+  const tokenRef = await getMicrosoftTokenRef();
+  const accessToken = tokenRef ? null : await getMicrosoftAccessToken();
 
-  if (!accessToken) {
+  if (!tokenRef && !accessToken) {
     return {
       success: false,
       error: 'Outlookの認証が切れています。設定画面から再認証してください。',
@@ -179,16 +194,24 @@ async function sendViaOutlook(params: SendMailParams): Promise<SendMailResult> {
     attachmentData = await readAttachmentsAsBase64(params.attachments);
   }
 
+  const requestBody: Record<string, unknown> = {
+    to: params.to,
+    subject: params.subject,
+    body: params.body,
+    cc: params.cc,
+    bcc: params.bcc,
+    attachments: attachmentData,
+  };
+
+  // tokenRef があればそれを送信、なければ accessToken（後方互換）
+  if (tokenRef) {
+    requestBody.tokenRef = tokenRef;
+  } else {
+    requestBody.accessToken = accessToken;
+  }
+
   const { data, error } = await supabase.functions.invoke('send-mail-outlook', {
-    body: {
-      accessToken,
-      to: params.to,
-      subject: params.subject,
-      body: params.body,
-      cc: params.cc,
-      bcc: params.bcc,
-      attachments: attachmentData,
-    },
+    body: requestBody,
   });
 
   if (error) {

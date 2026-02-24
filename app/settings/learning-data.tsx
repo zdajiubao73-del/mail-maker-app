@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   TouchableOpacity,
   View,
@@ -24,6 +25,8 @@ export default function LearningDataScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const profile = useLearningStore((s) => s.profile);
+  const learningEnabled = useLearningStore((s) => s.learningEnabled);
+  const setLearningEnabled = useLearningStore((s) => s.setLearningEnabled);
   const analyzeHistory = useLearningStore((s) => s.analyzeHistory);
   const updatePreferences = useLearningStore((s) => s.updatePreferences);
   const clearLearningData = useLearningStore((s) => s.clearLearningData);
@@ -34,12 +37,12 @@ export default function LearningDataScreen() {
     profile?.preferences.writingStyleNotes ?? '',
   );
 
-  // 画面表示時に履歴件数変化を検知して自動再分析
+  // 画面表示時に履歴件数変化を検知して自動再分析（学習統計オン時のみ）
   useEffect(() => {
-    if (history.length >= 3 && history.length !== profile?.lastAnalyzedMailCount) {
+    if (learningEnabled && history.length >= 3 && history.length !== profile?.lastAnalyzedMailCount) {
       analyzeHistory(history);
     }
-  }, [history.length, profile?.lastAnalyzedMailCount, analyzeHistory, history]);
+  }, [learningEnabled, history.length, profile?.lastAnalyzedMailCount, analyzeHistory, history]);
 
   // profile が変わったら入力値を同期
   useEffect(() => {
@@ -52,13 +55,13 @@ export default function LearningDataScreen() {
   const handleReanalyze = useCallback(() => {
     if (history.length < 3) {
       Alert.alert(
-        '分析できません',
-        'メール履歴が3通以上必要です。メールを生成して下書き保存してください。',
+        '分析エラー',
+        '分析には3件以上のメール履歴が必要です',
       );
       return;
     }
     analyzeHistory(history);
-    Alert.alert('完了', '履歴を再分析しました。');
+    Alert.alert('分析完了', '履歴を再分析しました');
   }, [history, analyzeHistory]);
 
   const handleSignatureBlur = useCallback(() => {
@@ -71,12 +74,12 @@ export default function LearningDataScreen() {
 
   const handleClearAll = useCallback(() => {
     Alert.alert(
-      'すべてのデータを削除',
-      '統計データ・署名・文体メモを含むすべての学習データを削除します。よろしいですか？',
+      '学習データを削除',
+      'すべての学習データを削除しますか？この操作は取り消せません。',
       [
         { text: 'キャンセル', style: 'cancel' },
         {
-          text: 'すべて削除',
+          text: '削除する',
           style: 'destructive',
           onPress: () => {
             clearLearningData();
@@ -110,12 +113,12 @@ export default function LearningDataScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Section 1: 学習統計 */}
+        {/* Section 1: 文体設定 */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <MaterialIcons name="bar-chart" size={20} color={colors.tint} />
+            <MaterialIcons name="edit" size={20} color={colors.tint} />
             <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
-              学習統計
+              文体設定
             </ThemedText>
           </View>
 
@@ -125,14 +128,108 @@ export default function LearningDataScreen() {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
+            <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
+              署名
+            </ThemedText>
+            <ThemedText style={[styles.inputHint, { color: colors.icon }]}>
+              メール末尾に自動挿入される署名を設定できます
+            </ThemedText>
+            <View style={[styles.aiWarning, { backgroundColor: '#FF950010', borderColor: '#FF950040' }]}>
+              <MaterialIcons name="info-outline" size={14} color="#FF9500" />
+              <ThemedText style={styles.aiWarningText}>
+                署名に個人情報（電話番号・住所等）を含める場合はご注意ください。AI処理時にサーバーに送信されます。
+              </ThemedText>
+            </View>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surfaceSecondary,
+                },
+              ]}
+              placeholder={'例:\n山田太郎\n〇〇株式会社\nメール: yamada@example.com'}
+              placeholderTextColor={colors.icon}
+              value={signature}
+              onChangeText={setSignature}
+              onBlur={handleSignatureBlur}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              maxLength={500}
+            />
+
+            <View style={[styles.inputSeparator, { backgroundColor: colors.border }]} />
+
+            <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
+              文体の指示
+            </ThemedText>
+            <ThemedText style={[styles.inputHint, { color: colors.icon }]}>
+              AIに文体について指示を出せます（例: 「です・ます調で」「簡潔に」）
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surfaceSecondary,
+                },
+              ]}
+              placeholder="例: 丁寧だが簡潔に。箇条書きを多用してほしい。"
+              placeholderTextColor={colors.icon}
+              value={writingStyleNotes}
+              onChangeText={setWritingStyleNotes}
+              onBlur={handleWritingStyleNotesBlur}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              maxLength={500}
+            />
+          </View>
+        </View>
+
+        {/* Section 2: 学習統計 */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <MaterialIcons name="bar-chart" size={20} color={colors.tint} />
+            <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
+              学習統計
+            </ThemedText>
+            <View style={styles.sectionHeaderSpacer} />
+            <Switch
+              value={learningEnabled}
+              onValueChange={setLearningEnabled}
+              trackColor={{ false: colors.border, true: colors.tint + '60' }}
+              thumbColor={learningEnabled ? colors.tint : colors.icon}
+            />
+          </View>
+
+          {!learningEnabled && (
+            <View style={[styles.disabledHint, { backgroundColor: colors.surfaceSecondary }]}>
+              <MaterialIcons name="info-outline" size={14} color={colors.textSecondary} />
+              <ThemedText style={[styles.disabledHintText, { color: colors.textSecondary }]}>
+                オフにすると、メール生成時に学習データが使われなくなります
+              </ThemedText>
+            </View>
+          )}
+
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              !learningEnabled && styles.disabledSection,
+            ]}
+          >
             {hasStats ? (
               <>
                 <View style={styles.statsRow}>
                   <ThemedText style={[styles.statsLabel, { color: colors.textSecondary }]}>
-                    分析件数
+                    分析済みメール数
                   </ThemedText>
                   <ThemedText style={[styles.statsValue, { color: colors.text }]}>
-                    {stats.totalMailsAnalyzed}通
+                    {`${stats.totalMailsAnalyzed}件`}
                   </ThemedText>
                 </View>
                 <View style={[styles.statsSeparator, { backgroundColor: colors.border }]} />
@@ -141,7 +238,7 @@ export default function LearningDataScreen() {
                     平均本文長
                   </ThemedText>
                   <ThemedText style={[styles.statsValue, { color: colors.text }]}>
-                    {stats.averageBodyLength}文字
+                    {`${stats.averageBodyLength}文字`}
                   </ThemedText>
                 </View>
                 {topHonorifics && (
@@ -175,7 +272,7 @@ export default function LearningDataScreen() {
               <View style={styles.emptyStats}>
                 <MaterialIcons name="info-outline" size={20} color={colors.icon} />
                 <ThemedText style={[styles.emptyStatsText, { color: colors.textSecondary }]}>
-                  メール履歴が3通以上になると、文体傾向を自動分析します
+                  3件以上のメール履歴があると自動分析されます
                 </ThemedText>
               </View>
             )}
@@ -185,18 +282,20 @@ export default function LearningDataScreen() {
             style={[
               styles.analyzeButton,
               { borderColor: colors.tint, backgroundColor: colors.tint + '08' },
+              !learningEnabled && styles.disabledSection,
             ]}
             onPress={handleReanalyze}
             activeOpacity={0.7}
+            disabled={!learningEnabled}
           >
             <MaterialIcons name="refresh" size={18} color={colors.tint} />
             <ThemedText style={[styles.analyzeButtonText, { color: colors.tint }]}>
-              履歴を再分析
+              再分析する
             </ThemedText>
           </TouchableOpacity>
         </View>
 
-        {/* Section 2: よく使うフレーズ */}
+        {/* Section 3: よく使うフレーズ */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="format-quote" size={20} color={colors.tint} />
@@ -209,6 +308,7 @@ export default function LearningDataScreen() {
             style={[
               styles.card,
               { backgroundColor: colors.surface, borderColor: colors.border },
+              !learningEnabled && styles.disabledSection,
             ]}
           >
             {hasStats && stats.phrasePatterns.openings.length > 0 ? (
@@ -239,7 +339,7 @@ export default function LearningDataScreen() {
                         { color: colors.textSecondary },
                       ]}
                     >
-                      締め
+                      締めくくり
                     </ThemedText>
                     {stats.phrasePatterns.closings.map((phrase, i) => (
                       <View
@@ -261,81 +361,10 @@ export default function LearningDataScreen() {
               <View style={styles.emptyStats}>
                 <MaterialIcons name="info-outline" size={20} color={colors.icon} />
                 <ThemedText style={[styles.emptyStatsText, { color: colors.textSecondary }]}>
-                  分析データがありません。履歴を再分析してください。
+                  フレーズパターンはまだ分析されていません
                 </ThemedText>
               </View>
             )}
-          </View>
-        </View>
-
-        {/* Section 3: 文体設定 */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="edit" size={20} color={colors.tint} />
-            <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
-              文体設定
-            </ThemedText>
-          </View>
-
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
-              署名
-            </ThemedText>
-            <ThemedText style={[styles.inputHint, { color: colors.icon }]}>
-              メールの末尾に自動追加されます
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: colors.surfaceSecondary,
-                },
-              ]}
-              placeholder={'例:\n山田太郎\n株式会社ABC 営業部\nTEL: 03-xxxx-xxxx'}
-              placeholderTextColor={colors.icon}
-              value={signature}
-              onChangeText={setSignature}
-              onBlur={handleSignatureBlur}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              maxLength={500}
-            />
-
-            <View style={[styles.inputSeparator, { backgroundColor: colors.border }]} />
-
-            <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
-              文体メモ
-            </ThemedText>
-            <ThemedText style={[styles.inputHint, { color: colors.icon }]}>
-              AIがメール生成時に参考にします
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: colors.surfaceSecondary,
-                },
-              ]}
-              placeholder={'例:\n・「させていただく」は使わない\n・簡潔な文体を好む\n・結論を先に書く'}
-              placeholderTextColor={colors.icon}
-              value={writingStyleNotes}
-              onChangeText={setWritingStyleNotes}
-              onBlur={handleWritingStyleNotesBlur}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              maxLength={500}
-            />
           </View>
         </View>
 
@@ -361,7 +390,7 @@ export default function LearningDataScreen() {
           >
             <MaterialIcons name="delete-forever" size={18} color={colors.danger} />
             <ThemedText style={[styles.deleteButtonText, { color: colors.danger }]}>
-              すべてのデータを削除
+              学習データをすべて削除
             </ThemedText>
           </TouchableOpacity>
         </View>
@@ -392,6 +421,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 12,
+  },
+  sectionHeaderSpacer: {
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 17,
@@ -483,6 +515,22 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 8,
   },
+  aiWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  aiWarningText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#FF9500',
+  },
   textInput: {
     borderWidth: 1,
     borderRadius: 10,
@@ -510,5 +558,24 @@ const styles = StyleSheet.create({
 deleteButtonText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+
+  // Disabled state
+  disabledSection: {
+    opacity: 0.5,
+  },
+  disabledHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  disabledHintText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

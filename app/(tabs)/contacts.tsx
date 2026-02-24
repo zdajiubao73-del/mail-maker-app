@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActionSheetIOS,
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
+  Platform,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -16,9 +20,31 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useContactStore } from '@/store/use-contact-store';
 import { isValidEmail } from '@/lib/validation';
+import {
+  useAuthRequest as useGoogleAuthRequest,
+  getContactsAuthRequestConfig as getGoogleContactsConfig,
+  discovery as googleDiscovery,
+  exchangeContactsCodeForTokens as exchangeGoogleContactsCode,
+  getContactsAccessToken as getGoogleContactsToken,
+} from '@/lib/google-auth';
+import {
+  useAuthRequest as useMicrosoftAuthRequest,
+  getContactsAuthRequestConfig as getMicrosoftContactsConfig,
+  discovery as microsoftDiscovery,
+  exchangeContactsCodeForTokens as exchangeMicrosoftContactsCode,
+  getContactsAccessToken as getMicrosoftContactsToken,
+} from '@/lib/microsoft-auth';
+import {
+  fetchGoogleContacts,
+  fetchMicrosoftContacts,
+  getMockContacts,
+} from '@/lib/contacts-import';
+import type { ImportedContact } from '@/lib/contacts-import';
 import type { Contact, ContactGroup, Relationship } from '@/types';
 
 type FilterTab = 'すべて' | ContactGroup;
+type ImportSource = 'gmail' | 'outlook';
+type ImportStep = 'select' | 'settings';
 
 const FILTER_TABS: FilterTab[] = ['すべて', '仕事', '学校', 'プライベート'];
 
@@ -119,7 +145,7 @@ function EmptyContactState({ colors }: { colors: (typeof Colors)['light'] }) {
       </View>
       <ThemedText style={styles.emptyText}>連絡先がありません</ThemedText>
       <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-        右上の「+」ボタンから連絡先を追加しましょう
+        右上の＋ボタンから連絡先を追加できます
       </ThemedText>
     </View>
   );
@@ -140,6 +166,30 @@ export default function ContactsScreen() {
     useState<Relationship>('同僚');
   const [newGroup, setNewGroup] = useState<ContactGroup>('仕事');
 
+  // Import state
+  const [isImportModalVisible, setIsImportModalVisible] = useState(false);
+  const [importStep, setImportStep] = useState<ImportStep>('select');
+  const [importSource, setImportSource] = useState<ImportSource>('gmail');
+  const [importedContacts, setImportedContacts] = useState<ImportedContact[]>([]);
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  const [importSearchQuery, setImportSearchQuery] = useState('');
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importGroup, setImportGroup] = useState<ContactGroup>('仕事');
+  const [importRelationship, setImportRelationship] = useState<Relationship>('同僚');
+
+  // Google contacts OAuth
+  const [googleRequest, googleResponse, googlePromptAsync] = useGoogleAuthRequest(
+    getGoogleContactsConfig(),
+    googleDiscovery,
+  );
+
+  // Microsoft contacts OAuth
+  const [microsoftRequest, microsoftResponse, microsoftPromptAsync] = useMicrosoftAuthRequest(
+    getMicrosoftContactsConfig(),
+    microsoftDiscovery,
+  );
+
   const inputBackground = colors.surfaceSecondary;
   const modalBackground = colors.background;
 
@@ -148,10 +198,211 @@ export default function ContactsScreen() {
       ? contacts
       : contacts.filter((c) => c.group === selectedFilter);
 
+  // Existing emails for duplicate check
+  const existingEmails = useMemo(
+    () => new Set(contacts.map((c) => c.email.toLowerCase())),
+    [contacts],
+  );
+
+  // Filter imported contacts by search query and exclude already-imported
+  const filteredImportedContacts = useMemo(() => {
+    let filtered = importedContacts.filter(
+      (c) => !existingEmails.has(c.email.toLowerCase()),
+    );
+    if (importSearchQuery.trim()) {
+      const q = importSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q),
+      );
+    }
+    return filtered;
+  }, [importedContacts, importSearchQuery, existingEmails]);
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (googleResponse?.type === 'success' && googleResponse.params.code) {
+      handleGoogleAuthSuccess(googleResponse.params.code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleResponse]);
+
+  // Handle Microsoft OAuth response
+  useEffect(() => {
+    if (microsoftResponse?.type === 'success' && microsoftResponse.params.code) {
+      handleMicrosoftAuthSuccess(microsoftResponse.params.code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [microsoftResponse]);
+
+  const handleGoogleAuthSuccess = useCallback(async (code: string) => {
+    setIsLoadingContacts(true);
+    setImportError(null);
+    try {
+      const { accessToken } = await exchangeGoogleContactsCode(
+        code,
+        googleRequest?.codeVerifier,
+      );
+      const fetched = await fetchGoogleContacts(accessToken);
+      setImportedContacts(fetched);
+      setImportSource('gmail');
+      setIsImportModalVisible(true);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : '連絡先の取得に失敗しました');
+      setIsImportModalVisible(true);
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  }, [googleRequest?.codeVerifier]);
+
+  const handleMicrosoftAuthSuccess = useCallback(async (code: string) => {
+    setIsLoadingContacts(true);
+    setImportError(null);
+    try {
+      const { accessToken } = await exchangeMicrosoftContactsCode(
+        code,
+        microsoftRequest?.codeVerifier,
+      );
+      const fetched = await fetchMicrosoftContacts(accessToken);
+      setImportedContacts(fetched);
+      setImportSource('outlook');
+      setIsImportModalVisible(true);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : '連絡先の取得に失敗しました');
+      setIsImportModalVisible(true);
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  }, [microsoftRequest?.codeVerifier]);
+
+  const handleImportPress = () => {
+    const useMock = !process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['キャンセル', 'Gmailからインポート', 'Outlookからインポート'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) startImport('gmail', useMock);
+          if (buttonIndex === 2) startImport('outlook', useMock);
+        },
+      );
+    } else {
+      Alert.alert(
+        'インポート元を選択',
+        undefined,
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'Gmailからインポート', onPress: () => startImport('gmail', useMock) },
+          { text: 'Outlookからインポート', onPress: () => startImport('outlook', useMock) },
+        ],
+      );
+    }
+  };
+
+  const startImport = async (source: ImportSource, useMock: boolean) => {
+    setImportStep('select');
+    setSelectedEmails(new Set());
+    setImportSearchQuery('');
+    setImportError(null);
+    setImportSource(source);
+    setImportGroup('仕事');
+    setImportRelationship('同僚');
+
+    if (useMock) {
+      const mockData = getMockContacts(source);
+      setImportedContacts(mockData);
+      setIsImportModalVisible(true);
+      return;
+    }
+
+    // Try using existing token first
+    setIsLoadingContacts(true);
+    try {
+      if (source === 'gmail') {
+        const token = await getGoogleContactsToken();
+        if (token) {
+          const fetched = await fetchGoogleContacts(token);
+          setImportedContacts(fetched);
+          setIsImportModalVisible(true);
+          setIsLoadingContacts(false);
+          return;
+        }
+        setIsLoadingContacts(false);
+        await googlePromptAsync();
+      } else {
+        const token = await getMicrosoftContactsToken();
+        if (token) {
+          const fetched = await fetchMicrosoftContacts(token);
+          setImportedContacts(fetched);
+          setIsImportModalVisible(true);
+          setIsLoadingContacts(false);
+          return;
+        }
+        setIsLoadingContacts(false);
+        await microsoftPromptAsync();
+      }
+    } catch (err) {
+      setIsLoadingContacts(false);
+      setImportError(err instanceof Error ? err.message : '認証エラーが発生しました');
+      setIsImportModalVisible(true);
+    }
+  };
+
+  const toggleContactSelection = (email: string) => {
+    setSelectedEmails((prev) => {
+      const next = new Set(prev);
+      if (next.has(email)) {
+        next.delete(email);
+      } else {
+        next.add(email);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEmails.size === filteredImportedContacts.length) {
+      setSelectedEmails(new Set());
+    } else {
+      setSelectedEmails(new Set(filteredImportedContacts.map((c) => c.email)));
+    }
+  };
+
+  const handleConfirmImport = () => {
+    const toImport = importedContacts.filter((c) =>
+      selectedEmails.has(c.email) && !existingEmails.has(c.email.toLowerCase()),
+    );
+
+    for (const imported of toImport) {
+      const newContact: Contact = {
+        id: `contact-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: imported.name,
+        email: imported.email,
+        relationship: importRelationship,
+        group: importGroup,
+        scope: importGroup === '仕事' ? '社内' : importGroup === '学校' ? '社外' : '個人間',
+        positionLevel: 'その他',
+      };
+      addContact(newContact);
+    }
+
+    setIsImportModalVisible(false);
+    setImportedContacts([]);
+    setSelectedEmails(new Set());
+
+    if (toImport.length > 0) {
+      Alert.alert('インポート完了', `${toImport.length}件の連絡先をインポートしました`);
+    }
+  };
+
   const handleDeleteContact = (contact: Contact) => {
     Alert.alert(
-      '連絡先の削除',
-      `${contact.name} を削除しますか？`,
+      '連絡先を削除',
+      `${contact.name}を削除しますか？`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -165,11 +416,11 @@ export default function ContactsScreen() {
 
   const handleAddContact = () => {
     if (!newName.trim() || !newEmail.trim()) {
-      Alert.alert('入力エラー', '名前とメールアドレスを入力してください');
+      Alert.alert('入力エラー', '名前とメールアドレスは必須です');
       return;
     }
     if (!isValidEmail(newEmail.trim())) {
-      Alert.alert('入力エラー', '正しいメールアドレスを入力してください');
+      Alert.alert('入力エラー', 'メールアドレスの形式が正しくありません');
       return;
     }
 
@@ -191,10 +442,42 @@ export default function ContactsScreen() {
     setIsModalVisible(false);
   };
 
+  const closeImportModal = () => {
+    setIsImportModalVisible(false);
+    setImportedContacts([]);
+    setSelectedEmails(new Set());
+    setImportSearchQuery('');
+    setImportError(null);
+    setImportStep('select');
+  };
+
+  const skippedCount = useMemo(
+    () => importedContacts.filter((c) => existingEmails.has(c.email.toLowerCase())).length,
+    [importedContacts, existingEmails],
+  );
+
+  const importSourceName = importSource === 'gmail' ? 'Gmail' : 'Outlook';
+
   return (
     <ThemedView style={styles.container}>
         {/* Header action */}
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.importButton, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+            onPress={handleImportPress}
+            disabled={isLoadingContacts}
+          >
+            {isLoadingContacts ? (
+              <ActivityIndicator size="small" color={colors.tint} />
+            ) : (
+              <>
+                <IconSymbol name="arrow.down.circle" size={16} color={colors.tint} />
+                <ThemedText style={[styles.importButtonText, { color: colors.tint }]}>
+                  インポート
+                </ThemedText>
+              </>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: colors.tint }]}
             onPress={() => setIsModalVisible(true)}
@@ -207,6 +490,7 @@ export default function ContactsScreen() {
         <View style={styles.filterContainer}>
           {FILTER_TABS.map((tab) => {
             const isSelected = selectedFilter === tab;
+            const displayLabel = tab === 'すべて' ? 'すべて' : tab;
             return (
               <TouchableOpacity
                 key={tab}
@@ -228,7 +512,7 @@ export default function ContactsScreen() {
                     !isSelected && { color: colors.text },
                   ]}
                 >
-                  {tab}
+                  {displayLabel}
                 </ThemedText>
               </TouchableOpacity>
             );
@@ -403,6 +687,236 @@ export default function ContactsScreen() {
             </SafeAreaView>
           </View>
         </Modal>
+
+        {/* Import Contacts Modal */}
+        <Modal
+          visible={isImportModalVisible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={closeImportModal}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: modalBackground }]}>
+            <SafeAreaView style={styles.modalSafeArea}>
+              {/* Import Modal Header */}
+              <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                <TouchableOpacity onPress={importStep === 'settings' ? () => setImportStep('select') : closeImportModal}>
+                  <ThemedText style={[styles.modalCancel, { color: colors.tint }]}>
+                    {importStep === 'settings' ? '戻る' : 'キャンセル'}
+                  </ThemedText>
+                </TouchableOpacity>
+                <ThemedText type="defaultSemiBold" style={styles.modalTitle}>
+                  {importStep === 'select'
+                    ? `${importSourceName}の連絡先`
+                    : 'インポート設定'}
+                </ThemedText>
+                {importStep === 'select' ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (selectedEmails.size === 0) {
+                        Alert.alert('選択エラー', '連絡先を選択してください');
+                        return;
+                      }
+                      setImportStep('settings');
+                    }}
+                  >
+                    <ThemedText style={[styles.modalSave, { color: colors.tint }]}>
+                      次へ
+                    </ThemedText>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={handleConfirmImport}>
+                    <ThemedText style={[styles.modalSave, { color: colors.tint }]}>
+                      インポート
+                    </ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {importStep === 'select' ? (
+                <>
+                  {/* Error state */}
+                  {importError ? (
+                    <View style={styles.importStatusContainer}>
+                      <IconSymbol name="exclamationmark.triangle" size={40} color={colors.danger} />
+                      <ThemedText style={[styles.importStatusText, { color: colors.danger }]}>
+                        {importError}
+                      </ThemedText>
+                    </View>
+                  ) : isLoadingContacts ? (
+                    <View style={styles.importStatusContainer}>
+                      <ActivityIndicator size="large" color={colors.tint} />
+                      <ThemedText style={[styles.importStatusText, { color: colors.textSecondary }]}>
+                        連絡先を取得中...
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <>
+                      {/* Search bar */}
+                      <View style={[styles.importSearchContainer, { borderBottomColor: colors.border }]}>
+                        <View style={[styles.importSearchBar, { backgroundColor: inputBackground }]}>
+                          <IconSymbol name="magnifyingglass" size={16} color={colors.icon} />
+                          <TextInput
+                            style={[styles.importSearchInput, { color: colors.text }]}
+                            value={importSearchQuery}
+                            onChangeText={setImportSearchQuery}
+                            placeholder="名前またはメールアドレスで検索"
+                            placeholderTextColor={colors.icon}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Select all + count */}
+                      <View style={[styles.importToolbar, { borderBottomColor: colors.border }]}>
+                        <TouchableOpacity onPress={toggleSelectAll}>
+                          <ThemedText style={[styles.selectAllText, { color: colors.tint }]}>
+                            {selectedEmails.size === filteredImportedContacts.length && filteredImportedContacts.length > 0
+                              ? '選択解除'
+                              : 'すべて選択'}
+                          </ThemedText>
+                        </TouchableOpacity>
+                        <ThemedText style={[styles.selectedCount, { color: colors.textSecondary }]}>
+                          {`${selectedEmails.size}件選択中`}
+                          {skippedCount > 0 ? ` （${skippedCount}件は登録済み）` : ''}
+                        </ThemedText>
+                      </View>
+
+                      {/* Contact list */}
+                      {filteredImportedContacts.length === 0 ? (
+                        <View style={styles.importStatusContainer}>
+                          <IconSymbol name="person.2.fill" size={40} color={colors.icon} />
+                          <ThemedText style={[styles.importStatusText, { color: colors.textSecondary }]}>
+                            {importSearchQuery
+                              ? '検索結果がありません'
+                              : 'インポート可能な連絡先がありません'}
+                          </ThemedText>
+                        </View>
+                      ) : (
+                        <FlatList
+                          data={filteredImportedContacts}
+                          keyExtractor={(item) => item.email}
+                          renderItem={({ item }) => {
+                            const isSelected = selectedEmails.has(item.email);
+                            return (
+                              <TouchableOpacity
+                                style={[
+                                  styles.importContactItem,
+                                  { backgroundColor: isSelected ? colors.tint + '10' : colors.surface },
+                                ]}
+                                onPress={() => toggleContactSelection(item.email)}
+                                activeOpacity={0.6}
+                              >
+                                <View style={[
+                                  styles.checkbox,
+                                  {
+                                    borderColor: isSelected ? colors.tint : colors.icon,
+                                    backgroundColor: isSelected ? colors.tint : 'transparent',
+                                  },
+                                ]}>
+                                  {isSelected && (
+                                    <IconSymbol name="checkmark" size={12} color="#FFFFFF" />
+                                  )}
+                                </View>
+                                <View style={styles.importContactInfo}>
+                                  <ThemedText type="defaultSemiBold" style={styles.importContactName}>
+                                    {item.name}
+                                  </ThemedText>
+                                  <ThemedText style={[styles.importContactEmail, { color: colors.textSecondary }]} numberOfLines={1}>
+                                    {item.email}
+                                  </ThemedText>
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          }}
+                          contentContainerStyle={styles.importListContent}
+                          showsVerticalScrollIndicator={false}
+                        />
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                /* Import settings step */
+                <ScrollView style={styles.formContainer}>
+                  <ThemedText style={[styles.importSettingsDesc, { color: colors.textSecondary }]}>
+                    {`${selectedEmails.size}件の連絡先をインポートします。グループと関係性を設定してください。`}
+                  </ThemedText>
+
+                  <View style={styles.formGroup}>
+                    <ThemedText style={styles.formLabel}>グループ</ThemedText>
+                    <View style={styles.optionGrid}>
+                      {GROUP_OPTIONS.map((group) => (
+                        <TouchableOpacity
+                          key={group}
+                          style={[
+                            styles.optionChip,
+                            {
+                              backgroundColor:
+                                importGroup === group
+                                  ? GROUP_COLORS[group]
+                                  : inputBackground,
+                            },
+                          ]}
+                          onPress={() => setImportGroup(group)}
+                        >
+                          <ThemedText
+                            style={[
+                              styles.optionChipText,
+                              {
+                                color:
+                                  importGroup === group
+                                    ? '#FFFFFF'
+                                    : colors.text,
+                              },
+                            ]}
+                          >
+                            {group}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={[styles.formGroup, { marginTop: 24 }]}>
+                    <ThemedText style={styles.formLabel}>関係性</ThemedText>
+                    <View style={styles.optionGrid}>
+                      {RELATIONSHIP_OPTIONS.map((rel) => (
+                        <TouchableOpacity
+                          key={rel}
+                          style={[
+                            styles.optionChip,
+                            {
+                              backgroundColor:
+                                importRelationship === rel
+                                  ? colors.tint
+                                  : inputBackground,
+                            },
+                          ]}
+                          onPress={() => setImportRelationship(rel)}
+                        >
+                          <ThemedText
+                            style={[
+                              styles.optionChipText,
+                              {
+                                color:
+                                  importRelationship === rel
+                                    ? '#FFFFFF'
+                                    : colors.text,
+                              },
+                            ]}
+                          >
+                            {rel}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </ScrollView>
+              )}
+            </SafeAreaView>
+          </View>
+        </Modal>
     </ThemedView>
   );
 }
@@ -414,9 +928,24 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 8,
+    gap: 10,
+  },
+  importButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 6,
+  },
+  importButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   addButton: {
     width: 36,
@@ -579,5 +1108,82 @@ const styles = StyleSheet.create({
   optionChipText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  // Import modal styles
+  importSearchContainer: {
+    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  importSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 8,
+  },
+  importSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  importToolbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  selectAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  selectedCount: {
+    fontSize: 13,
+  },
+  importContactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 14,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  importContactInfo: {
+    flex: 1,
+  },
+  importContactName: {
+    fontSize: 15,
+    marginBottom: 2,
+  },
+  importContactEmail: {
+    fontSize: 13,
+  },
+  importListContent: {
+    paddingBottom: 40,
+  },
+  importStatusContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    gap: 16,
+  },
+  importStatusText: {
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  importSettingsDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
   },
 });

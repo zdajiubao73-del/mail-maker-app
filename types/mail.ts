@@ -20,7 +20,7 @@ export type Scope = '社内' | '社外' | '個人間';
 export type PositionLevel = '経営層' | '管理職' | '一般社員' | '学生' | 'その他';
 
 /** 目的カテゴリ */
-export type PurposeCategory = 'ビジネス' | '就職・転職' | '学校・学術' | 'プライベート';
+export type PurposeCategory = 'ビジネス' | '就職・転職' | '学校・学術' | 'プライベート' | 'その他';
 
 /** 敬語レベル */
 export type HonorificsLevel = '最敬体' | '丁寧' | '普通' | 'カジュアル';

@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ContactPickerModal } from '@/components/contact-picker-modal';
+import { PaywallModal } from '@/components/paywall-modal';
 import { useMailStore } from '@/store/use-mail-store';
 import { usePlanStore } from '@/store/use-plan-store';
 import { SITUATIONS, type SituationItem } from '@/constants/situations';
@@ -65,6 +66,7 @@ const PURPOSE_CATEGORIES: PurposeCategory[] = [
   '就職・転職',
   '学校・学術',
   'プライベート',
+  'その他',
 ];
 
 const HONORIFICS_LEVELS: HonorificsLevel[] = [
@@ -85,12 +87,16 @@ const ATMOSPHERES: Atmosphere[] = [
 
 const URGENCIES: Urgency[] = ['通常', 'やや急ぎ', '至急'];
 
-const STEP_LABELS = ['相手', '目的', 'トーン', '追加'];
-
 export default function DetailedCreateScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
+  const STEP_LABELS = [
+    '送信相手',
+    '目的',
+    'トーン',
+    '追加情報',
+  ];
 
   const {
     setMode,
@@ -119,6 +125,8 @@ export default function DetailedCreateScreen() {
   const [selectedCategory, setSelectedCategory] = useState<PurposeCategory | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<SituationItem | null>(null);
   const [selectedSituation, setSelectedSituation] = useState<string | null>(null);
+  const [customPurpose, setCustomPurpose] = useState('');
+  const [customSituation, setCustomSituation] = useState('');
 
   // Step 3: Tone
   const [honorificsLevel, setHonorificsLevel] = useState<HonorificsLevel>(tone.honorificsLevel);
@@ -134,6 +142,7 @@ export default function DetailedCreateScreen() {
 
   // Contact picker
   const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
 
   const handleContactSelected = useCallback((contact: Contact) => {
     setRecipientName(contact.name);
@@ -150,7 +159,10 @@ export default function DetailedCreateScreen() {
       case 1:
         return selectedRelationship && selectedScope && selectedPositionLevel;
       case 2:
-        return selectedCategory && selectedSituation;
+        if (!selectedCategory) return false;
+        if (selectedCategory === 'その他') return customPurpose.trim().length > 0;
+        if (selectedSituation === 'その他') return customSituation.trim().length > 0;
+        return !!selectedSituation;
       case 3:
         return true; // All have defaults
       case 4:
@@ -165,6 +177,8 @@ export default function DetailedCreateScreen() {
     selectedPositionLevel,
     selectedCategory,
     selectedSituation,
+    customPurpose,
+    customSituation,
   ]);
 
   const handleNext = useCallback(() => {
@@ -183,31 +197,40 @@ export default function DetailedCreateScreen() {
     setSelectedCategory(category);
     setSelectedSubcategory(null);
     setSelectedSituation(null);
+    setCustomPurpose('');
+    setCustomSituation('');
   }, []);
 
   const handleSubcategorySelect = useCallback((subcategory: SituationItem) => {
     setSelectedSubcategory(subcategory);
     setSelectedSituation(null);
+    setCustomSituation('');
   }, []);
 
   const handleGenerate = useCallback(async () => {
     if (!selectedRelationship || !selectedScope || !selectedPositionLevel) {
-      Alert.alert('入力エラー', '送信相手の設定を完了してください。');
+      Alert.alert('入力エラー', '送信相手の情報を入力してください');
       setCurrentStep(1);
       return;
     }
-    if (!selectedCategory || !selectedSituation) {
-      Alert.alert('入力エラー', 'メールの目的を選択してください。');
+    const resolvedSituation = selectedCategory === 'その他'
+      ? customPurpose.trim()
+      : selectedSituation === 'その他'
+        ? customSituation.trim()
+        : selectedSituation;
+    if (!selectedCategory || !resolvedSituation) {
+      Alert.alert('入力エラー', 'メールの目的を選択してください');
       setCurrentStep(2);
       return;
     }
 
-    const { canGenerate, isSubscribed } = usePlanStore.getState();
+    const { canUseApp, canGenerate } = usePlanStore.getState();
+    if (!canUseApp()) {
+      setShowPaywallModal(true);
+      return;
+    }
     if (!canGenerate()) {
-      const message = isSubscribed()
-        ? '今月の生成回数上限に達しました。来月まで少々お待ちください。'
-        : '本日の生成回数上限に達しました。サブスクリプションに登録すると月500回まで生成できます。';
-      Alert.alert('生成回数上限', message);
+      Alert.alert('生成上限に達しました', '今月の生成上限に達しました。来月までお待ちください。');
       return;
     }
     const recipient = {
@@ -234,19 +257,19 @@ export default function DetailedCreateScreen() {
     setMode('detailed');
     setRecipient(recipient);
     setPurposeCategory(selectedCategory);
-    setSituation(selectedSituation);
+    setSituation(resolvedSituation);
     setTone(toneSettings);
     setAdditionalInfo(additionalInfo);
     setRecipientInfo(recipientName, recipientEmail);
 
     try {
       setIsGenerating(true);
-      const learningProfile = useLearningStore.getState().profile;
-      const learningContext = learningProfile ? buildLearningContext(learningProfile) : undefined;
+      const { profile: learningProfile, learningEnabled } = useLearningStore.getState();
+      const learningContext = learningEnabled && learningProfile ? buildLearningContext(learningProfile) : undefined;
       const mail = await generateMail({
         recipient,
         purposeCategory: selectedCategory,
-        situation: selectedSituation,
+        situation: resolvedSituation,
         tone: toneSettings,
         additionalInfo,
         learningContext,
@@ -255,7 +278,7 @@ export default function DetailedCreateScreen() {
       usePlanStore.getState().incrementGenerationCount();
       router.push('/preview');
     } catch {
-      Alert.alert('エラー', 'メールの生成に失敗しました。もう一度お試しください。');
+      Alert.alert('生成エラー', 'メールの生成に失敗しました。もう一度お試しください。');
     } finally {
       setIsGenerating(false);
     }
@@ -265,6 +288,8 @@ export default function DetailedCreateScreen() {
     selectedPositionLevel,
     selectedCategory,
     selectedSituation,
+    customPurpose,
+    customSituation,
     honorificsLevel,
     mailLength,
     atmosphere,
@@ -294,6 +319,7 @@ export default function DetailedCreateScreen() {
     items: T[],
     selected: T | null,
     onSelect: (item: T) => void,
+    labelFn?: (item: T) => string,
   ) {
     return (
       <View style={styles.chipGroup}>
@@ -318,7 +344,7 @@ export default function DetailedCreateScreen() {
                 selected === item ? { color: '#fff' } : { color: colors.text },
               ]}
             >
-              {item}
+              {labelFn ? labelFn(item) : item}
             </ThemedText>
           </TouchableOpacity>
         ))}
@@ -408,17 +434,17 @@ export default function DetailedCreateScreen() {
             <ThemedText style={[styles.stepNumberBadgeText, { color: colors.tint }]}>1</ThemedText>
           </View>
           <ThemedText style={[styles.stepTitle, { color: colors.text }]}>
-            送信相手の設定
+            {'送信相手の設定'}
           </ThemedText>
         </View>
         <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-          メールを送る相手との関係性を設定してください
+          {'送信先の情報を入力してください'}
         </ThemedText>
 
         {/* Recipient Name & Email */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            送信先（任意）
+            {'送信先'}
           </ThemedText>
           <TextInput
             style={[
@@ -429,7 +455,7 @@ export default function DetailedCreateScreen() {
                 backgroundColor: colors.surface,
               },
             ]}
-            placeholder="お名前"
+            placeholder="宛名（例: 田中太郎）"
             placeholderTextColor={colors.textSecondary}
             value={recipientName}
             onChangeText={setRecipientName}
@@ -445,7 +471,7 @@ export default function DetailedCreateScreen() {
                 marginTop: 8,
               },
             ]}
-            placeholder="メールアドレス"
+            placeholder="メールアドレス（例: tanaka@example.com）"
             placeholderTextColor={colors.textSecondary}
             value={recipientEmail}
             onChangeText={setRecipientEmail}
@@ -459,7 +485,7 @@ export default function DetailedCreateScreen() {
             activeOpacity={0.7}
           >
             <ThemedText style={[styles.contactButtonText, { color: colors.tint }]}>
-              連絡先から選択
+              {'連絡先から選択'}
             </ThemedText>
           </TouchableOpacity>
         </View>
@@ -467,7 +493,7 @@ export default function DetailedCreateScreen() {
         {/* Relationship */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            関係性
+            {'関係性'}
           </ThemedText>
           {renderChipGroup(RELATIONSHIPS, selectedRelationship, setSelectedRelationship)}
         </View>
@@ -475,7 +501,7 @@ export default function DetailedCreateScreen() {
         {/* Scope */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            範囲
+            {'社内/社外'}
           </ThemedText>
           {renderChipGroup(SCOPES, selectedScope, setSelectedScope)}
         </View>
@@ -483,7 +509,7 @@ export default function DetailedCreateScreen() {
         {/* Position Level */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            役職レベル
+            {'役職レベル'}
           </ThemedText>
           {renderChipGroup(POSITION_LEVELS, selectedPositionLevel, setSelectedPositionLevel)}
         </View>
@@ -499,17 +525,17 @@ export default function DetailedCreateScreen() {
             <ThemedText style={[styles.stepNumberBadgeText, { color: colors.tint }]}>2</ThemedText>
           </View>
           <ThemedText style={[styles.stepTitle, { color: colors.text }]}>
-            メールの目的
+            {'メールの目的'}
           </ThemedText>
         </View>
         <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-          メールの目的を選択してください
+          {'送信するメールの目的を選択してください'}
         </ThemedText>
 
         {/* Category tabs */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            カテゴリ
+            {'カテゴリ'}
           </ThemedText>
           <ScrollView
             horizontal
@@ -546,11 +572,42 @@ export default function DetailedCreateScreen() {
           </ScrollView>
         </View>
 
-        {/* Subcategory */}
-        {selectedCategory && subcategories.length > 0 && (
+        {/* Custom purpose input for その他 */}
+        {selectedCategory === 'その他' && (
           <View style={styles.fieldGroup}>
             <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-              サブカテゴリ
+              {'メールの目的'}
+            </ThemedText>
+            <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              {'どんなメールを作成したいか自由に入力してください'}
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                styles.multilineInput,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+              placeholder="例: 引越し業者への見積もり依頼、保険の解約手続き"
+              placeholderTextColor={colors.textSecondary}
+              value={customPurpose}
+              onChangeText={setCustomPurpose}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              maxLength={200}
+            />
+          </View>
+        )}
+
+        {/* Subcategory */}
+        {selectedCategory && selectedCategory !== 'その他' && subcategories.length > 0 && (
+          <View style={styles.fieldGroup}>
+            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
+              {'サブカテゴリ'}
             </ThemedText>
             <View style={styles.chipGroup}>
               {subcategories.map((sub) => (
@@ -589,10 +646,10 @@ export default function DetailedCreateScreen() {
         )}
 
         {/* Situation */}
-        {selectedSubcategory && (
+        {selectedSubcategory && selectedCategory !== 'その他' && (
           <View style={styles.fieldGroup}>
             <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-              シチュエーション
+              {'シチュエーション'}
             </ThemedText>
             <View style={styles.chipGroup}>
               {selectedSubcategory.situations.map((situation) => (
@@ -608,7 +665,10 @@ export default function DetailedCreateScreen() {
                           borderWidth: 1,
                         },
                   ]}
-                  onPress={() => setSelectedSituation(situation)}
+                  onPress={() => {
+                    setSelectedSituation(situation);
+                    if (situation !== 'その他') setCustomSituation('');
+                  }}
                 >
                   <ThemedText
                     style={[
@@ -625,6 +685,33 @@ export default function DetailedCreateScreen() {
             </View>
           </View>
         )}
+
+        {/* Custom situation input */}
+        {selectedSituation === 'その他' && selectedCategory !== 'その他' && (
+          <View style={styles.fieldGroup}>
+            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
+              {'シチュエーションの詳細'}
+            </ThemedText>
+            <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              {'どのような内容のメールか具体的に入力してください'}
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+              placeholder="例: 会場の予約依頼、プロジェクトの進捗共有"
+              placeholderTextColor={colors.textSecondary}
+              value={customSituation}
+              onChangeText={setCustomSituation}
+              maxLength={200}
+            />
+          </View>
+        )}
       </View>
     );
   }
@@ -637,17 +724,17 @@ export default function DetailedCreateScreen() {
             <ThemedText style={[styles.stepNumberBadgeText, { color: colors.tint }]}>3</ThemedText>
           </View>
           <ThemedText style={[styles.stepTitle, { color: colors.text }]}>
-            トーン・文体
+            {'トーン・文体'}
           </ThemedText>
         </View>
         <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-          メールのトーンや文体を設定してください
+          {'メールのトーンと文体を調整できます'}
         </ThemedText>
 
         {/* Honorifics Level */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            敬語レベル
+            {'敬語レベル'}
           </ThemedText>
           {renderChipGroup(HONORIFICS_LEVELS, honorificsLevel, setHonorificsLevel)}
         </View>
@@ -655,7 +742,7 @@ export default function DetailedCreateScreen() {
         {/* Mail Length */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            文章の長さ
+            {'文章の長さ'}
           </ThemedText>
           {renderChipGroup(MAIL_LENGTHS, mailLength, setMailLength)}
         </View>
@@ -663,7 +750,7 @@ export default function DetailedCreateScreen() {
         {/* Atmosphere */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            雰囲気
+            {'雰囲気'}
           </ThemedText>
           {renderChipGroup(ATMOSPHERES, atmosphere, setAtmosphere)}
         </View>
@@ -671,7 +758,7 @@ export default function DetailedCreateScreen() {
         {/* Urgency */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            緊急度
+            {'緊急度'}
           </ThemedText>
           {renderChipGroup(URGENCIES, urgency, setUrgency)}
         </View>
@@ -696,21 +783,21 @@ export default function DetailedCreateScreen() {
             <ThemedText style={[styles.stepNumberBadgeText, { color: colors.tint }]}>4</ThemedText>
           </View>
           <ThemedText style={[styles.stepTitle, { color: colors.text }]}>
-            追加情報
+            {'追加情報'}
           </ThemedText>
         </View>
         <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-          メールに含める情報を入力してください（任意）
+          {'メールに含めたい情報があれば入力してください'}
         </ThemedText>
 
         {/* Key Points */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            要点
+            {'要点'}
           </ThemedText>
           <TextInput
             style={[...inputStyle, styles.multilineInput]}
-            placeholder="メールの要点を入力してください"
+            placeholder="伝えたいポイントを入力..."
             placeholderTextColor={colors.textSecondary}
             value={keyPoints}
             onChangeText={setKeyPoints}
@@ -724,11 +811,14 @@ export default function DetailedCreateScreen() {
         {/* Date Time */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            日時
+            {'メールに記載する日時'}
+          </ThemedText>
+          <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
+            {'会議・打ち合わせの候補日、締切、イベント日程など'}
           </ThemedText>
           <TextInput
             style={inputStyle}
-            placeholder="例: 2月15日 14:00"
+            placeholder="例: 3月5日(水) 14:00〜15:00"
             placeholderTextColor={colors.textSecondary}
             value={dateTime}
             onChangeText={setDateTime}
@@ -739,11 +829,11 @@ export default function DetailedCreateScreen() {
         {/* Proper Nouns */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            固有名詞
+            {'固有名詞'}
           </ThemedText>
           <TextInput
             style={inputStyle}
-            placeholder="例: 株式会社ABC、プロジェクトX"
+            placeholder="例: 〇〇株式会社、△△プロジェクト"
             placeholderTextColor={colors.textSecondary}
             value={properNouns}
             onChangeText={setProperNouns}
@@ -754,11 +844,11 @@ export default function DetailedCreateScreen() {
         {/* Notes */}
         <View style={styles.fieldGroup}>
           <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            補足事項
+            {'補足事項'}
           </ThemedText>
           <TextInput
             style={[...inputStyle, styles.multilineInput]}
-            placeholder="その他、メールに含めたい情報があれば入力してください"
+            placeholder="その他の補足情報..."
             placeholderTextColor={colors.textSecondary}
             value={notes}
             onChangeText={setNotes}
@@ -833,7 +923,7 @@ export default function DetailedCreateScreen() {
             onPress={handleBack}
           >
             <ThemedText style={[styles.backButtonText, { color: colors.text }]}>
-              戻る
+              {'戻る'}
             </ThemedText>
           </TouchableOpacity>
         ) : (
@@ -851,7 +941,7 @@ export default function DetailedCreateScreen() {
             onPress={handleNext}
             disabled={!canGoNext()}
           >
-            <ThemedText style={styles.nextButtonText}>次へ</ThemedText>
+            <ThemedText style={styles.nextButtonText}>{'次へ'}</ThemedText>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -867,10 +957,10 @@ export default function DetailedCreateScreen() {
             {isGenerating ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color="#fff" size="small" />
-                <ThemedText style={styles.generateButtonText}>生成中...</ThemedText>
+                <ThemedText style={styles.generateButtonText}>{'生成中...'}</ThemedText>
               </View>
             ) : (
-              <ThemedText style={styles.generateButtonText}>メール生成</ThemedText>
+              <ThemedText style={styles.generateButtonText}>{'メールを生成'}</ThemedText>
             )}
           </TouchableOpacity>
         )}
@@ -880,6 +970,10 @@ export default function DetailedCreateScreen() {
         visible={isContactPickerVisible}
         onClose={() => setIsContactPickerVisible(false)}
         onSelect={handleContactSelected}
+      />
+      <PaywallModal
+        visible={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
       />
     </ThemedView>
   );
@@ -1001,6 +1095,12 @@ const styles = StyleSheet.create({
   fieldLabel: {
     marginBottom: 10,
     fontSize: 15,
+  },
+  fieldHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 10,
+    marginTop: -4,
   },
 
   /* ---- Chips ---- */
