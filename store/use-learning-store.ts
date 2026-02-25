@@ -34,6 +34,7 @@ export const useLearningStore = create<LearningState>()(
             preferences: existing?.preferences ?? {
               signature: '',
               writingStyleNotes: '',
+              openingText: '',
             },
             lastAnalyzedAt: new Date().toISOString(),
             lastAnalyzedMailCount: history.length,
@@ -61,6 +62,7 @@ export const useLearningStore = create<LearningState>()(
               preferences: {
                 signature: '',
                 writingStyleNotes: '',
+                openingText: '',
                 ...partial,
               },
               lastAnalyzedAt: new Date().toISOString(),

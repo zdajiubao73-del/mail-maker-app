@@ -56,21 +56,28 @@ export default function PaywallScreen({ onClose }: Props) {
 
   useEffect(() => {
     if (!configured) return;
+    let cancelled = false;
     (async () => {
-      const pkgs = await getOfferings();
-      setPackages(pkgs);
+      try {
+        const pkgs = await getOfferings();
+        if (cancelled) return;
+        setPackages(pkgs);
 
-      // 実際のトライアル期間を製品情報から取得
-      const monthlyProduct = pkgs.find((p: any) => p.packageType === 'MONTHLY') as any;
-      const annualProduct = pkgs.find((p: any) => p.packageType === 'ANNUAL') as any;
-      const introPrice = monthlyProduct?.product?.introPrice ?? annualProduct?.product?.introPrice;
-      if (introPrice?.periodNumberOfUnits && introPrice?.periodUnit) {
-        const units = introPrice.periodNumberOfUnits;
-        const unit = introPrice.periodUnit as string;
-        const unitLabel = unit === 'DAY' ? '日間' : unit === 'WEEK' ? '週間' : unit === 'MONTH' ? 'ヶ月' : '年';
-        setTrialPeriodText(`${units}${unitLabel}`);
+        // 実際のトライアル期間を製品情報から取得
+        const monthlyProduct = pkgs.find((p: any) => p.packageType === 'MONTHLY') as any;
+        const annualProduct = pkgs.find((p: any) => p.packageType === 'ANNUAL') as any;
+        const introPrice = monthlyProduct?.product?.introPrice ?? annualProduct?.product?.introPrice;
+        if (introPrice?.periodNumberOfUnits && introPrice?.periodUnit) {
+          const units = introPrice.periodNumberOfUnits;
+          const unit = introPrice.periodUnit as string;
+          const unitLabel = unit === 'DAY' ? '日間' : unit === 'WEEK' ? '週間' : unit === 'MONTH' ? 'ヶ月' : '年';
+          setTrialPeriodText(`${units}${unitLabel}`);
+        }
+      } catch {
+        // Error already handled inside getOfferings
       }
     })();
+    return () => { cancelled = true; };
   }, [configured]);
 
   const handlePurchase = useCallback(async (pkg: any) => {

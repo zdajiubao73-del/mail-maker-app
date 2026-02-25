@@ -137,7 +137,21 @@ function ContactItem({
   );
 }
 
-function EmptyContactState({ colors }: { colors: (typeof Colors)['light'] }) {
+const CONTACT_BENEFITS = [
+  { icon: 'person.fill.checkmark' as const, text: '相手に合わせた敬語を自動調整' },
+  { icon: 'envelope.fill' as const, text: 'メール作成時にワンタップで宛先入力' },
+  { icon: 'arrow.down.circle' as const, text: 'GmailやOutlookから一括インポート可能' },
+];
+
+function EmptyContactState({
+  colors,
+  onAddPress,
+  onImportPress,
+}: {
+  colors: (typeof Colors)['light'];
+  onAddPress: () => void;
+  onImportPress: () => void;
+}) {
   return (
     <View style={styles.emptyState}>
       <View style={[styles.emptyIconContainer, { backgroundColor: colors.surfaceSecondary }]}>
@@ -145,8 +159,42 @@ function EmptyContactState({ colors }: { colors: (typeof Colors)['light'] }) {
       </View>
       <ThemedText style={styles.emptyText}>連絡先がありません</ThemedText>
       <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-        右上の＋ボタンから連絡先を追加できます
+        連絡先を登録すると、メール作成がもっとスムーズに
       </ThemedText>
+
+      {/* Benefits */}
+      <View style={[styles.benefitsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {CONTACT_BENEFITS.map((benefit, index) => (
+          <View key={index} style={styles.benefitRow}>
+            <View style={[styles.benefitIcon, { backgroundColor: colors.tint + '12' }]}>
+              <IconSymbol name={benefit.icon} size={14} color={colors.tint} />
+            </View>
+            <ThemedText style={[styles.benefitText, { color: colors.textSecondary }]}>
+              {benefit.text}
+            </ThemedText>
+          </View>
+        ))}
+      </View>
+
+      {/* CTA Buttons */}
+      <View style={styles.ctaRow}>
+        <TouchableOpacity
+          style={[styles.ctaButtonPrimary, { backgroundColor: colors.tint }]}
+          activeOpacity={0.8}
+          onPress={onAddPress}
+        >
+          <IconSymbol name="plus" size={16} color="#FFFFFF" />
+          <ThemedText style={styles.ctaButtonPrimaryText}>追加</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.ctaButtonSecondary, { borderColor: colors.tint }]}
+          activeOpacity={0.8}
+          onPress={onImportPress}
+        >
+          <IconSymbol name="arrow.down.circle" size={16} color={colors.tint} />
+          <ThemedText style={[styles.ctaButtonSecondaryText, { color: colors.tint }]}>インポート</ThemedText>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -534,7 +582,13 @@ export default function ContactsScreen() {
             styles.listContent,
             filteredContacts.length === 0 && styles.listContentEmpty,
           ]}
-          ListEmptyComponent={<EmptyContactState colors={colors} />}
+          ListEmptyComponent={
+            <EmptyContactState
+              colors={colors}
+              onAddPress={() => setIsModalVisible(true)}
+              onImportPress={handleImportPress}
+            />
+          }
           showsVerticalScrollIndicator={false}
         />
 
@@ -1031,7 +1085,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
   },
   emptyIconContainer: {
     width: 80,
@@ -1049,8 +1103,65 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 14,
-    opacity: 0.6,
     textAlign: 'center',
+    lineHeight: 20,
+  },
+  benefitsContainer: {
+    width: '100%',
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 24,
+    padding: 16,
+    gap: 14,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  benefitIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  benefitText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  ctaRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  ctaButtonPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+  },
+  ctaButtonPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  ctaButtonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  ctaButtonSecondaryText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   // Modal styles
   modalContainer: {

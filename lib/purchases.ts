@@ -84,18 +84,33 @@ export async function initializePurchases(): Promise<void> {
 
 /**
  * 利用可能なパッケージ（月額/年額）を取得する
+ * 初回失敗時は1回だけリトライする
  */
 export async function getOfferings(): Promise<unknown[]> {
   if (!isConfigured || !PurchasesModule) return [];
 
-  try {
-    const offerings = await PurchasesModule.getOfferings();
-    if (!offerings.current) return [];
-    return offerings.current.availablePackages;
-  } catch (error) {
-    if (__DEV__) console.error('[Purchases] Failed to get offerings:', error);
-    return [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const offerings = await PurchasesModule.getOfferings();
+      if (!offerings.current) {
+        if (__DEV__) console.log(`[Purchases] No current offering (attempt ${attempt + 1})`);
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+        return [];
+      }
+      return offerings.current.availablePackages;
+    } catch (error) {
+      if (__DEV__) console.error(`[Purchases] Failed to get offerings (attempt ${attempt + 1}):`, error);
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 1500));
+        continue;
+      }
+      return [];
+    }
   }
+  return [];
 }
 
 /**
@@ -242,6 +257,23 @@ export async function checkTrialEligibility(
  */
 export function isPurchasesConfigured(): boolean {
   return isConfigured;
+}
+
+/**
+ * 課金システムの診断情報を取得する（デバッグ用）
+ */
+export function getPurchasesDiagnostics(): {
+  isExpoGo: boolean;
+  hasApiKey: boolean;
+  isConfigured: boolean;
+  nativeAvailable: boolean;
+} {
+  return {
+    isExpoGo,
+    hasApiKey: !!REVENUECAT_API_KEY,
+    isConfigured,
+    nativeAvailable,
+  };
 }
 
 /**

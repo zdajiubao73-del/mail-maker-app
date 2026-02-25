@@ -94,10 +94,11 @@ async function generateMailViaAPI(
     );
   }
 
-  // learningContext の署名があれば末尾に追加
+  // 署名を末尾に追加（top-level を優先、なければ learningContext）
   let body: string = data.body;
-  if (request.learningContext?.signature) {
-    body += `\n\n${request.learningContext.signature}`;
+  const signature = request.signature ?? request.learningContext?.signature;
+  if (signature) {
+    body += `\n\n${signature}`;
   }
 
   return {

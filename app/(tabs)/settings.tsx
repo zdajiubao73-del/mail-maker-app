@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useContentMaxWidth } from '@/hooks/use-responsive';
 
 type SettingsItem = {
   label: string;
@@ -33,6 +34,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const contentMaxWidth = useContentMaxWidth();
 
   const settingsSections: SettingsSection[] = useMemo(() => [
     {
@@ -118,7 +120,10 @@ export default function SettingsScreen() {
   return (
     <ThemedView style={styles.container}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            contentMaxWidth ? { maxWidth: contentMaxWidth + 48, alignSelf: 'center' as const, width: '100%' as const } : undefined,
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {settingsSections.map((section) => (

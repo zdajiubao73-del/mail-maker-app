@@ -64,13 +64,18 @@ export type MailGenerationRequest = {
   situation: string;
   tone: ToneSettings;
   additionalInfo: AdditionalInfo;
+  writingStyleNotes?: string;
+  openingText?: string;
+  signature?: string;
   templateId?: string;
+  regenerationInstruction?: string;
   learningContext?: {
     preferredOpenings?: string[];
     preferredClosings?: string[];
     averageBodyLength?: number;
     signature?: string;
     writingStyleNotes?: string;
+    openingText?: string;
   };
 };
 

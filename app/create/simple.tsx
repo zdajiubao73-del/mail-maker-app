@@ -25,6 +25,7 @@ import { Colors } from '@/constants/theme';
 import { generateMail } from '@/lib/mail-generator';
 import { useLearningStore } from '@/store/use-learning-store';
 import { buildLearningContext } from '@/lib/learning-analyzer';
+import { useResponsivePadding, useContentMaxWidth } from '@/hooks/use-responsive';
 import type { Contact, PurposeCategory, Relationship } from '@/types';
 
 const PURPOSE_CATEGORIES: PurposeCategory[] = [
@@ -38,6 +39,8 @@ export default function SimpleCreateScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
+  const responsivePadding = useResponsivePadding();
+  const contentMaxWidth = useContentMaxWidth();
   const {
     setPurposeCategory,
     setSituation,
@@ -57,6 +60,9 @@ export default function SimpleCreateScreen() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<SituationItem | null>(null);
   const [selectedSituation, setSelectedSituation] = useState<string | null>(null);
   const [keyPoints, setKeyPoints] = useState('');
+  const [writingStyleNotes, setWritingStyleNotes] = useState('');
+  const [openingText, setOpeningText] = useState('');
+  const [signature, setSignature] = useState('');
   const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
   const [showPaywallModal, setShowPaywallModal] = useState(false);
 
@@ -119,7 +125,8 @@ export default function SimpleCreateScreen() {
     try {
       setIsGenerating(true);
       const { profile: learningProfile, learningEnabled } = useLearningStore.getState();
-      const learningContext = learningEnabled && learningProfile ? buildLearningContext(learningProfile) : undefined;
+      const built = learningProfile ? buildLearningContext(learningProfile, learningEnabled) : undefined;
+      const learningContext = built && Object.keys(built).length > 0 ? built : undefined;
       const mail = await generateMail({
         recipient: defaultRecipient,
         purposeCategory: selectedCategory,
@@ -131,6 +138,9 @@ export default function SimpleCreateScreen() {
           urgency: '通常',
         },
         additionalInfo: { keyPoints },
+        writingStyleNotes: writingStyleNotes.trim() || undefined,
+        openingText: openingText.trim() || undefined,
+        signature: signature.trim() || undefined,
         learningContext,
       });
       setGeneratedMail(mail);
@@ -145,6 +155,9 @@ export default function SimpleCreateScreen() {
     selectedCategory,
     selectedSituation,
     keyPoints,
+    writingStyleNotes,
+    openingText,
+    signature,
     recipientName,
     recipientEmail,
     setMode,
@@ -170,7 +183,11 @@ export default function SimpleCreateScreen() {
       >
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingHorizontal: responsivePadding },
+          contentMaxWidth ? { maxWidth: contentMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -439,6 +456,99 @@ export default function SimpleCreateScreen() {
           />
         </View>
 
+        {/* Section 4: Writing Style & Signature */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View style={[styles.stepCircle, { backgroundColor: colors.tint }]}>
+              <ThemedText style={styles.stepCircleText}>4</ThemedText>
+            </View>
+            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+              {'文体・署名設定（任意）'}
+            </ThemedText>
+          </View>
+
+          <ThemedText style={[styles.sectionHint, { color: colors.textSecondary }]}>
+            {'メールの書き方や署名について設定できます'}
+          </ThemedText>
+
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
+            {'文頭に入れる文章'}
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              styles.multilineInput,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
+            placeholder="例: いつもお世話になっております。株式会社〇〇の田中です。"
+            placeholderTextColor={colors.icon}
+            value={openingText}
+            onChangeText={setOpeningText}
+            multiline
+            numberOfLines={2}
+            textAlignVertical="top"
+            maxLength={300}
+          />
+
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text, marginTop: 12 }]}>
+            {'文体の指示'}
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              styles.multilineInput,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
+            placeholder="例: です/ます調で、箇条書きを使って簡潔に"
+            placeholderTextColor={colors.icon}
+            value={writingStyleNotes}
+            onChangeText={setWritingStyleNotes}
+            multiline
+            numberOfLines={2}
+            textAlignVertical="top"
+            maxLength={500}
+          />
+
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text, marginTop: 12 }]}>
+            {'署名'}
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              styles.multilineInput,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
+            placeholder={'例:\n山田太郎\n株式会社〇〇 営業部\nTEL: 03-1234-5678'}
+            placeholderTextColor={colors.icon}
+            value={signature}
+            onChangeText={setSignature}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+            maxLength={500}
+          />
+        </View>
+
         {/* Generate button */}
         <TouchableOpacity
           style={[
@@ -549,6 +659,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 12,
+  },
+  fieldLabel: {
+    marginBottom: 8,
+    fontSize: 14,
   },
   textInput: {
     borderWidth: 1,

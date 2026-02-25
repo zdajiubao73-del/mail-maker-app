@@ -24,6 +24,7 @@ import { Colors } from '@/constants/theme';
 import { generateMail } from '@/lib/mail-generator';
 import { useLearningStore } from '@/store/use-learning-store';
 import { buildLearningContext } from '@/lib/learning-analyzer';
+import { useResponsivePadding, useContentMaxWidth } from '@/hooks/use-responsive';
 import type {
   Contact,
   Relationship,
@@ -98,6 +99,8 @@ export default function DetailedCreateScreen() {
     '追加情報',
   ];
 
+  const responsivePadding = useResponsivePadding();
+  const contentMaxWidth = useContentMaxWidth();
   const {
     setMode,
     setRecipient,
@@ -133,6 +136,9 @@ export default function DetailedCreateScreen() {
   const [mailLength, setMailLength] = useState<MailLength>(tone.mailLength);
   const [atmosphere, setAtmosphere] = useState<Atmosphere>(tone.atmosphere);
   const [urgency, setUrgency] = useState<Urgency>(tone.urgency);
+  const [writingStyleNotes, setWritingStyleNotes] = useState('');
+  const [openingText, setOpeningText] = useState('');
+  const [signature, setSignature] = useState('');
 
   // Step 4: Additional Info
   const [keyPoints, setKeyPoints] = useState('');
@@ -265,13 +271,17 @@ export default function DetailedCreateScreen() {
     try {
       setIsGenerating(true);
       const { profile: learningProfile, learningEnabled } = useLearningStore.getState();
-      const learningContext = learningEnabled && learningProfile ? buildLearningContext(learningProfile) : undefined;
+      const built = learningProfile ? buildLearningContext(learningProfile, learningEnabled) : undefined;
+      const learningContext = built && Object.keys(built).length > 0 ? built : undefined;
       const mail = await generateMail({
         recipient,
         purposeCategory: selectedCategory,
         situation: resolvedSituation,
         tone: toneSettings,
         additionalInfo,
+        writingStyleNotes: writingStyleNotes.trim() || undefined,
+        openingText: openingText.trim() || undefined,
+        signature: signature.trim() || undefined,
         learningContext,
       });
       setGeneratedMail(mail);
@@ -298,6 +308,9 @@ export default function DetailedCreateScreen() {
     dateTime,
     properNouns,
     notes,
+    writingStyleNotes,
+    openingText,
+    signature,
     recipientName,
     recipientEmail,
     setMode,
@@ -762,6 +775,7 @@ export default function DetailedCreateScreen() {
           </ThemedText>
           {renderChipGroup(URGENCIES, urgency, setUrgency)}
         </View>
+
       </View>
     );
   }
@@ -858,6 +872,69 @@ export default function DetailedCreateScreen() {
             maxLength={500}
           />
         </View>
+
+        {/* Opening Text */}
+        <View style={styles.fieldGroup}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
+            {'文頭に入れる文章'}
+          </ThemedText>
+          <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
+            {'メール冒頭にそのまま挿入する文章を入力してください'}
+          </ThemedText>
+          <TextInput
+            style={[...inputStyle, styles.multilineInput]}
+            placeholder="例: いつもお世話になっております。株式会社〇〇の田中です。"
+            placeholderTextColor={colors.textSecondary}
+            value={openingText}
+            onChangeText={setOpeningText}
+            multiline
+            numberOfLines={2}
+            textAlignVertical="top"
+            maxLength={300}
+          />
+        </View>
+
+        {/* Writing Style Notes */}
+        <View style={styles.fieldGroup}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
+            {'文体の指示'}
+          </ThemedText>
+          <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
+            {'文体について追加の指示があれば入力してください'}
+          </ThemedText>
+          <TextInput
+            style={[...inputStyle, styles.multilineInput]}
+            placeholder="例: です/ます調で、箇条書きを使って簡潔に"
+            placeholderTextColor={colors.textSecondary}
+            value={writingStyleNotes}
+            onChangeText={setWritingStyleNotes}
+            multiline
+            numberOfLines={2}
+            textAlignVertical="top"
+            maxLength={500}
+          />
+        </View>
+
+        {/* Signature */}
+        <View style={styles.fieldGroup}>
+          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
+            {'署名'}
+          </ThemedText>
+          <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
+            {'メール末尾に追加する署名を入力してください'}
+          </ThemedText>
+          <TextInput
+            style={[...inputStyle, styles.multilineInput]}
+            placeholder={'例:\n山田太郎\n株式会社〇〇 営業部\nTEL: 03-1234-5678'}
+            placeholderTextColor={colors.textSecondary}
+            value={signature}
+            onChangeText={setSignature}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+            maxLength={500}
+          />
+        </View>
       </View>
     );
   }
@@ -890,7 +967,11 @@ export default function DetailedCreateScreen() {
       {/* Step Content */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingHorizontal: responsivePadding },
+          contentMaxWidth ? { maxWidth: contentMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined,
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {currentStep === 1 && renderStep1()}
@@ -1022,8 +1103,8 @@ const styles = StyleSheet.create({
   stepConnector: {
     position: 'absolute',
     top: 15,
-    left: '60%',
-    right: '-40%',
+    left: '55%',
+    width: '90%',
     height: 2,
     borderRadius: 1,
   },

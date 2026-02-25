@@ -24,6 +24,7 @@ import {
   restorePurchases,
   isPurchasesConfigured,
 } from '@/lib/purchases';
+import { useContentMaxWidth } from '@/hooks/use-responsive';
 
 export default function PlanScreen() {
   const router = useRouter();
@@ -35,10 +36,12 @@ export default function PlanScreen() {
   const syncWithRevenueCat = usePlanStore((s) => s.syncWithRevenueCat);
   const getTrialDaysRemaining = usePlanStore((s) => s.getTrialDaysRemaining);
 
+  const contentMaxWidth = useContentMaxWidth();
   const [packages, setPackages] = useState<any[]>([]);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [trialPeriodText, setTrialPeriodText] = useState('14日間');
+  const [isLoadingPackages, setIsLoadingPackages] = useState(true);
 
   const cardBg = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
 
@@ -57,24 +60,32 @@ export default function PlanScreen() {
   ], []);
 
   useEffect(() => {
-    if (!configured) return;
+    if (!configured) {
+      setIsLoadingPackages(false);
+      return;
+    }
     (async () => {
-      const pkgs = await getOfferings();
-      setPackages(pkgs);
+      setIsLoadingPackages(true);
+      try {
+        const pkgs = await getOfferings();
+        setPackages(pkgs);
 
-      // 実際のトライアル期間を製品情報から取得
-      const monthlyProduct = pkgs.find((p: any) => p.packageType === 'MONTHLY') as any;
-      const annualProduct = pkgs.find((p: any) => p.packageType === 'ANNUAL') as any;
-      const introPrice = monthlyProduct?.product?.introPrice ?? annualProduct?.product?.introPrice;
-      if (introPrice?.periodNumberOfUnits && introPrice?.periodUnit) {
-        const units = introPrice.periodNumberOfUnits;
-        const unit = introPrice.periodUnit as string;
-        const unitLabel =
-          unit === 'DAY' ? '日間' :
-          unit === 'WEEK' ? '週間' :
-          unit === 'MONTH' ? 'ヶ月間' :
-          '年間';
-        setTrialPeriodText(`${units}${unitLabel}`);
+        // 実際のトライアル期間を製品情報から取得
+        const monthlyProduct = pkgs.find((p: any) => p.packageType === 'MONTHLY') as any;
+        const annualProduct = pkgs.find((p: any) => p.packageType === 'ANNUAL') as any;
+        const introPrice = monthlyProduct?.product?.introPrice ?? annualProduct?.product?.introPrice;
+        if (introPrice?.periodNumberOfUnits && introPrice?.periodUnit) {
+          const units = introPrice.periodNumberOfUnits;
+          const unit = introPrice.periodUnit as string;
+          const unitLabel =
+            unit === 'DAY' ? '日間' :
+            unit === 'WEEK' ? '週間' :
+            unit === 'MONTH' ? 'ヶ月間' :
+            '年間';
+          setTrialPeriodText(`${units}${unitLabel}`);
+        }
+      } finally {
+        setIsLoadingPackages(false);
       }
     })();
   }, [configured]);
@@ -115,7 +126,10 @@ export default function PlanScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            contentMaxWidth ? { maxWidth: contentMaxWidth, alignSelf: 'center' as const, width: '100%' as const } : undefined,
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {/* Current Plan Status */}
@@ -280,25 +294,50 @@ export default function PlanScreen() {
                 </View>
               </View>
 
+              {/* Loading state */}
+              {isLoadingPackages && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.tint} />
+                  <ThemedText style={[styles.loadingText, { color: colors.textSecondary }]}>
+                    プラン情報を読み込み中...
+                  </ThemedText>
+                </View>
+              )}
+
+              {/* Error state: configured but no packages */}
+              {!isLoadingPackages && configured && packages.length === 0 && (
+                <View style={[styles.errorCard, { backgroundColor: '#FF3B3010' }]}>
+                  <IconSymbol name="exclamationmark.triangle" size={20} color="#FF3B30" />
+                  <ThemedText style={[styles.errorText, { color: colors.textSecondary }]}>
+                    サブスクリプション商品を読み込めませんでした。ネットワーク接続を確認して、もう一度お試しください。
+                  </ThemedText>
+                </View>
+              )}
+
               {/* CTA */}
               <TouchableOpacity
                 style={[
                   styles.subscribeButton,
-                  (isPurchasing || isRestoring) && styles.buttonDisabled,
+                  (isPurchasing || isRestoring || isLoadingPackages) && styles.buttonDisabled,
                 ]}
                 activeOpacity={0.8}
                 onPress={() => {
                   if (configured && packages.length > 0) {
                     const annual = packages.find((p: { packageType: string }) => p.packageType === 'ANNUAL');
                     handlePurchase(annual ?? packages[0]);
+                  } else if (!configured) {
+                    Alert.alert(
+                      'サブスクリプション',
+                      '課金システムの初期化に失敗しました。アプリを再起動してお試しください。',
+                    );
                   } else {
                     Alert.alert(
                       'サブスクリプション',
-                      '準備中です。しばらくお待ちください。',
+                      '商品情報の読み込みに失敗しました。ネットワーク接続を確認して、もう一度お試しください。',
                     );
                   }
                 }}
-                disabled={isPurchasing || isRestoring}
+                disabled={isPurchasing || isRestoring || isLoadingPackages}
               >
                 {isPurchasing ? (
                   <ActivityIndicator color="#1A1A1A" />
@@ -371,7 +410,7 @@ export default function PlanScreen() {
           {/* Apple subscription notice */}
           {!isSubscribed() && (
             <ThemedText style={[styles.subscriptionNotice, { color: colors.icon }]}>
-              サブスクリプションはApple IDアカウントに課金されます。最初の{trialPeriodText}は無料トライアル期間です。トライアル期間中にキャンセルすれば料金は発生しません。現在の期間が終了する24時間前までにキャンセルしない限り、自動更新されます。サブスクリプション管理はApp Storeの設定から行えます。
+              お支払いは購入確認時にApple IDアカウントに課金されます。最初の{trialPeriodText}は無料トライアル期間です。トライアル期間中にキャンセルすれば料金は発生しません。サブスクリプションは自動更新されます。現在の期間が終了する24時間前までに自動更新をオフにしない限り、アカウントに更新料金が課金されます。購入後、App Storeの「アカウント設定」からサブスクリプションの管理および自動更新のオフが可能です。ご利用にあたっては利用規約（EULA）およびプライバシーポリシーに同意いただく必要があります。
             </ThemedText>
           )}
 
@@ -382,7 +421,7 @@ export default function PlanScreen() {
               activeOpacity={0.6}
             >
               <ThemedText style={[styles.legalLinkText, { color: colors.tint }]}>
-                利用規約
+                利用規約（EULA）
               </ThemedText>
             </TouchableOpacity>
             <ThemedText style={[styles.legalSeparator, { color: colors.textSecondary }]}>|</ThemedText>
@@ -578,6 +617,32 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   trialInfoText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  /* Loading / Error */
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  errorText: {
+    flex: 1,
     fontSize: 13,
     lineHeight: 19,
   },

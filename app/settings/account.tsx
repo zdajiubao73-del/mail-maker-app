@@ -285,6 +285,9 @@ export default function AccountScreen() {
                 <ThemedText style={styles.emptyText}>
                   メールアカウントが未登録です
                 </ThemedText>
+                <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+                  アカウントを連携すると、作成したメールをアプリから直接送信できます
+                </ThemedText>
               </View>
             ) : (
               mailAccounts.map((account, index) => {
@@ -363,9 +366,34 @@ export default function AccountScreen() {
             </TouchableOpacity>
           </View>
 
-          <ThemedText style={[styles.hintText, { color: colors.icon }]}>
-            長押しでアカウントを削除できます
-          </ThemedText>
+          {mailAccounts.length > 0 && (
+            <ThemedText style={[styles.hintText, { color: colors.icon }]}>
+              長押しでアカウントを削除できます
+            </ThemedText>
+          )}
+
+          {/* Benefits section when no accounts */}
+          {mailAccounts.length === 0 && (
+            <View style={[styles.benefitsCard, { backgroundColor: cardBg }]}>
+              <ThemedText style={[styles.benefitsTitle, { color: colors.text }]}>
+                連携するメリット
+              </ThemedText>
+              {[
+                { icon: 'paperplane.fill' as const, text: 'アプリから直接メール送信' },
+                { icon: 'lock.shield.fill' as const, text: 'OAuth認証で安全に連携（パスワード不要）' },
+                { icon: 'person.2.fill' as const, text: '連絡先のインポートも可能' },
+              ].map((item, index) => (
+                <View key={index} style={styles.benefitRow}>
+                  <View style={[styles.benefitIconContainer, { backgroundColor: colors.tint + '12' }]}>
+                    <IconSymbol name={item.icon} size={14} color={colors.tint} />
+                  </View>
+                  <ThemedText style={[styles.benefitText, { color: colors.textSecondary }]}>
+                    {item.text}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* ── Data Reset ────────────────────────────────────── */}
           <TouchableOpacity
@@ -467,11 +495,53 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     paddingVertical: 28,
-    gap: 10,
+    paddingHorizontal: 20,
+    gap: 8,
   },
   emptyText: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+
+  /* Benefits */
+  benefitsCard: {
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 18,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  benefitsTitle: {
     fontSize: 14,
-    opacity: 0.5,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  benefitIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  benefitText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
   },
 
   /* Add button */

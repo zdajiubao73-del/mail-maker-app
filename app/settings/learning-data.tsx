@@ -36,6 +36,9 @@ export default function LearningDataScreen() {
   const [writingStyleNotes, setWritingStyleNotes] = useState(
     profile?.preferences.writingStyleNotes ?? '',
   );
+  const [openingText, setOpeningText] = useState(
+    profile?.preferences.openingText ?? '',
+  );
 
   // 画面表示時に履歴件数変化を検知して自動再分析（学習統計オン時のみ）
   useEffect(() => {
@@ -49,6 +52,7 @@ export default function LearningDataScreen() {
     if (profile) {
       setSignature(profile.preferences.signature);
       setWritingStyleNotes(profile.preferences.writingStyleNotes);
+      setOpeningText(profile.preferences.openingText ?? '');
     }
   }, [profile]);
 
@@ -72,6 +76,10 @@ export default function LearningDataScreen() {
     updatePreferences({ writingStyleNotes });
   }, [writingStyleNotes, updatePreferences]);
 
+  const handleOpeningTextBlur = useCallback(() => {
+    updatePreferences({ openingText });
+  }, [openingText, updatePreferences]);
+
   const handleClearAll = useCallback(() => {
     Alert.alert(
       '学習データを削除',
@@ -85,6 +93,7 @@ export default function LearningDataScreen() {
             clearLearningData();
             setSignature('');
             setWritingStyleNotes('');
+            setOpeningText('');
           },
         },
       ],
@@ -187,6 +196,34 @@ export default function LearningDataScreen() {
               textAlignVertical="top"
               maxLength={500}
             />
+
+            <View style={[styles.inputSeparator, { backgroundColor: colors.border }]} />
+
+            <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
+              文頭に入れる文章
+            </ThemedText>
+            <ThemedText style={[styles.inputHint, { color: colors.icon }]}>
+              メール本文の最初に必ず入れたい文章を設定できます
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surfaceSecondary,
+                },
+              ]}
+              placeholder="例: お世話になっております。○○部の田中です。"
+              placeholderTextColor={colors.icon}
+              value={openingText}
+              onChangeText={setOpeningText}
+              onBlur={handleOpeningTextBlur}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              maxLength={300}
+            />
           </View>
         </View>
 
@@ -269,11 +306,22 @@ export default function LearningDataScreen() {
                 )}
               </>
             ) : (
-              <View style={styles.emptyStats}>
-                <MaterialIcons name="info-outline" size={20} color={colors.icon} />
-                <ThemedText style={[styles.emptyStatsText, { color: colors.textSecondary }]}>
-                  3件以上のメール履歴があると自動分析されます
+              <View style={styles.emptyStatsEnhanced}>
+                <MaterialIcons name="analytics" size={32} color={colors.icon} />
+                <ThemedText style={[styles.emptyStatsTitle, { color: colors.text }]}>
+                  学習データなし
                 </ThemedText>
+                <ThemedText style={[styles.emptyStatsText, { color: colors.textSecondary }]}>
+                  メールを3件以上作成すると、あなたの文体をAIが自動分析します
+                </ThemedText>
+                <View style={styles.emptyStatsProgress}>
+                  <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
+                    <View style={[styles.progressBarFill, { backgroundColor: colors.tint, width: `${Math.min((history.length / 3) * 100, 100)}%` }]} />
+                  </View>
+                  <ThemedText style={[styles.progressText, { color: colors.textSecondary }]}>
+                    {`${history.length} / 3件`}
+                  </ThemedText>
+                </View>
               </View>
             )}
           </View>
@@ -358,11 +406,22 @@ export default function LearningDataScreen() {
                 )}
               </>
             ) : (
-              <View style={styles.emptyStats}>
-                <MaterialIcons name="info-outline" size={20} color={colors.icon} />
-                <ThemedText style={[styles.emptyStatsText, { color: colors.textSecondary }]}>
-                  フレーズパターンはまだ分析されていません
+              <View style={styles.emptyPhrasesContainer}>
+                <MaterialIcons name="format-quote" size={28} color={colors.icon} />
+                <ThemedText style={[styles.emptyPhrasesTitle, { color: colors.text }]}>
+                  フレーズ未検出
                 </ThemedText>
+                <ThemedText style={[styles.emptyStatsText, { color: colors.textSecondary }]}>
+                  メール作成を重ねると、よく使う書き出しや締めくくりのパターンを検出します
+                </ThemedText>
+                <View style={[styles.phraseExampleContainer, { backgroundColor: colors.surfaceSecondary }]}>
+                  <ThemedText style={[styles.phraseExampleLabel, { color: colors.icon }]}>
+                    検出例
+                  </ThemedText>
+                  <ThemedText style={[styles.phraseExampleText, { color: colors.textSecondary }]}>
+                    「お世話になっております」「ご確認のほどよろしくお願いいたします」
+                  </ThemedText>
+                </View>
               </View>
             )}
           </View>
@@ -462,10 +521,66 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 8,
   },
+  emptyStatsEnhanced: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  emptyStatsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
   emptyStatsText: {
     flex: 1,
     fontSize: 13,
     lineHeight: 20,
+    textAlign: 'center',
+  },
+  emptyStatsProgress: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+  },
+  progressBarBg: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyPhrasesContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  emptyPhrasesTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  phraseExampleContainer: {
+    width: '100%',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+    gap: 4,
+  },
+  phraseExampleLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  phraseExampleText: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontStyle: 'italic',
   },
 
   // Analyze button

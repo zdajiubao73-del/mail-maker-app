@@ -218,13 +218,8 @@ export default function PreviewScreen() {
   const remainingRegenerations = MAX_REGENERATIONS - regenerationCount;
   const canRegenerate = remainingRegenerations > 0;
 
-  // Regenerate mail
-  const handleRegenerate = useCallback(async () => {
-    if (!canRegenerate) {
-      Alert.alert('再生成の上限', `再生成は最大${MAX_REGENERATIONS}回までです`);
-      return;
-    }
-
+  // Regenerate mail with optional instruction
+  const executeRegenerate = useCallback(async (instruction?: string) => {
     if (!recipient || !purposeCategory || !situation) {
       Alert.alert('設定不足', 'メール生成に必要な設定が不足しています');
       return;
@@ -242,6 +237,7 @@ export default function PreviewScreen() {
         additionalInfo,
         templateId: templateId ?? undefined,
         learningContext,
+        regenerationInstruction: instruction || undefined,
       });
 
       // Save current edits to snapshot and truncate forward history
@@ -267,7 +263,6 @@ export default function PreviewScreen() {
       setIsGenerating(false);
     }
   }, [
-    canRegenerate,
     recipient,
     purposeCategory,
     situation,
@@ -280,6 +275,36 @@ export default function PreviewScreen() {
     editedSubject,
     editedBody,
   ]);
+
+  // Show regeneration prompt
+  const handleRegenerate = useCallback(() => {
+    if (!canRegenerate) {
+      Alert.alert('再生成の上限', `再生成は最大${MAX_REGENERATIONS}回までです`);
+      return;
+    }
+
+    Alert.prompt(
+      '再生成',
+      '修正指示を入力すると、AIがその内容を反映してメールを再生成します。',
+      [
+        {
+          text: 'キャンセル',
+          style: 'cancel',
+        },
+        {
+          text: '指示なしで再生成',
+          onPress: () => executeRegenerate(),
+        },
+        {
+          text: '指示して再生成',
+          onPress: (value?: string) => executeRegenerate(value),
+        },
+      ],
+      'plain-text',
+      '',
+      'もっと短く、もっとフォーマルに...',
+    );
+  }, [canRegenerate, executeRegenerate]);
 
   // Version navigation
   const handleGoToPreviousVersion = useCallback(() => {

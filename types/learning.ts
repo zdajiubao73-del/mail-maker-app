@@ -29,6 +29,7 @@ export type MailStatistics = {
 export type UserStylePreferences = {
   signature: string;
   writingStyleNotes: string;
+  openingText: string;
 };
 
 /** 学習プロファイル */
@@ -46,4 +47,5 @@ export type LearningContext = {
   averageBodyLength?: number;
   signature?: string;
   writingStyleNotes?: string;
+  openingText?: string;
 };

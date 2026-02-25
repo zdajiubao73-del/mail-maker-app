@@ -11,8 +11,10 @@ import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getTemplates, getTemplatesByCategory } from '@/lib/templates';
 import { Colors } from '@/constants/theme';
+import { useIsTablet, useContentMaxWidth } from '@/hooks/use-responsive';
 import type { PurposeCategory, PromptTemplate } from '@/types';
 
 const FILTER_OPTIONS: (PurposeCategory | 'すべて')[] = [
@@ -36,6 +38,8 @@ export default function TemplatesScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
 
+  const isTablet = useIsTablet();
+  const contentMaxWidth = useContentMaxWidth();
   const [selectedFilter, setSelectedFilter] = useState<PurposeCategory | 'すべて'>('すべて');
 
   const templates = useMemo(() => {
@@ -145,15 +149,27 @@ export default function TemplatesScreen() {
 
       {/* Template List */}
       <FlatList
+        key={isTablet ? 'tablet-2col' : 'phone-1col'}
         data={templates}
         renderItem={renderTemplateCard}
         keyExtractor={keyExtractor}
-        contentContainerStyle={styles.listContent}
+        numColumns={isTablet ? 2 : 1}
+        columnWrapperStyle={isTablet ? styles.columnWrapper : undefined}
+        contentContainerStyle={[
+          styles.listContent,
+          contentMaxWidth ? { maxWidth: contentMaxWidth + 48, alignSelf: 'center' as const, width: '100%' as const } : undefined,
+        ]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <ThemedText style={[styles.emptyText, { color: colors.icon }]}>
+            <View style={[styles.emptyIconContainer, { backgroundColor: colors.tint + '12' }]}>
+              <IconSymbol name="doc.text.fill" size={36} color={colors.tint} />
+            </View>
+            <ThemedText style={styles.emptyTitle}>
               テンプレートがありません
+            </ThemedText>
+            <ThemedText style={[styles.emptySubtext, { color: colors.icon }]}>
+              このカテゴリにはテンプレートがまだありません。{'\n'}「すべて」タブから他のテンプレートをご覧ください。
             </ThemedText>
           </View>
         }
@@ -188,7 +204,11 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  columnWrapper: {
+    gap: 12,
+  },
   card: {
+    flex: 1,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
@@ -237,8 +257,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 60,
+    paddingHorizontal: 32,
   },
-  emptyText: {
-    fontSize: 15,
+  emptyIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 21,
   },
 });

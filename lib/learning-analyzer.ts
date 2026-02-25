@@ -172,33 +172,46 @@ export function analyzeMailHistory(
 
 /**
  * LearningProfile から learningContext を構築する
+ *
+ * learningEnabled=false の場合でも signature と writingStyleNotes は
+ * ユーザーが明示的に設定した項目なので常に含める。
+ * 統計ベースの学習データ（フレーズパターン・平均文字数）のみ除外する。
  */
 export function buildLearningContext(
   profile: LearningProfile,
+  learningEnabled = true,
 ): LearningContext {
   const { statistics, preferences } = profile;
 
   const context: LearningContext = {};
 
-  // フレーズパターン
-  if (statistics.phrasePatterns.openings.length > 0) {
-    context.preferredOpenings = statistics.phrasePatterns.openings;
-  }
-  if (statistics.phrasePatterns.closings.length > 0) {
-    context.preferredClosings = statistics.phrasePatterns.closings;
+  // 統計ベースの学習データは learningEnabled 時のみ
+  if (learningEnabled) {
+    if (statistics.phrasePatterns.openings.length > 0) {
+      context.preferredOpenings = statistics.phrasePatterns.openings;
+    }
+    if (statistics.phrasePatterns.closings.length > 0) {
+      context.preferredClosings = statistics.phrasePatterns.closings;
+    }
+    if (statistics.averageBodyLength > 0) {
+      context.averageBodyLength = statistics.averageBodyLength;
+    }
   }
 
-  // 平均文字数
-  if (statistics.averageBodyLength > 0) {
-    context.averageBodyLength = statistics.averageBodyLength;
-  }
-
-  // ユーザー設定
+  // ユーザーが明示的に設定した項目は常に含める
   if (preferences.signature.trim()) {
     context.signature = preferences.signature.trim();
   }
   if (preferences.writingStyleNotes.trim()) {
     context.writingStyleNotes = preferences.writingStyleNotes.trim();
+  }
+  if (preferences.openingText?.trim()) {
+    context.openingText = preferences.openingText.trim();
+  }
+
+  // 何もデータが無い場合は undefined を返す代わりに空オブジェクトを返さない
+  if (Object.keys(context).length === 0) {
+    return context;
   }
 
   return context;

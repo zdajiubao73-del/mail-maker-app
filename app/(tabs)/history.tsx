@@ -12,7 +12,14 @@ import { Colors } from '@/constants/theme';
 import { STATUS_CONFIG } from '@/constants/mail-status';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMailStore } from '@/store/use-mail-store';
+import { useContentMaxWidth } from '@/hooks/use-responsive';
 import type { MailHistoryItem } from '@/types';
+
+const EMPTY_STEPS = [
+  { icon: 'paperplane.fill' as const, text: 'ホーム画面からメールを作成' },
+  { icon: 'doc.text.fill' as const, text: 'AIが自動で文章を生成' },
+  { icon: 'clock.fill' as const, text: '作成・送信した履歴がここに表示' },
+];
 
 function formatRelativeDate(date: Date): string {
   const d = new Date(date);
@@ -123,7 +130,7 @@ function HistoryItem({
   );
 }
 
-function EmptyState({ colors }: { colors: (typeof Colors)['light'] }) {
+function EmptyState({ colors, onCreatePress }: { colors: (typeof Colors)['light']; onCreatePress: () => void }) {
   return (
     <View style={styles.emptyState}>
       <View style={[styles.emptyIconContainer, { backgroundColor: colors.surfaceSecondary }]}>
@@ -133,8 +140,35 @@ function EmptyState({ colors }: { colors: (typeof Colors)['light'] }) {
         {'履歴がありません'}
       </ThemedText>
       <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-        {'メールを作成すると履歴が表示されます'}
+        {'作成・送信したメールの履歴がここに表示されます'}
       </ThemedText>
+
+      {/* Steps */}
+      <View style={[styles.stepsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {EMPTY_STEPS.map((step, index) => (
+          <View key={index} style={styles.stepRow}>
+            <View style={[styles.stepNumber, { backgroundColor: colors.tint + '15' }]}>
+              <ThemedText style={[styles.stepNumberText, { color: colors.tint }]}>
+                {index + 1}
+              </ThemedText>
+            </View>
+            <IconSymbol name={step.icon} size={16} color={colors.icon} />
+            <ThemedText style={[styles.stepText, { color: colors.textSecondary }]}>
+              {step.text}
+            </ThemedText>
+          </View>
+        ))}
+      </View>
+
+      {/* CTA */}
+      <TouchableOpacity
+        style={[styles.ctaButton, { backgroundColor: colors.tint }]}
+        activeOpacity={0.8}
+        onPress={onCreatePress}
+      >
+        <IconSymbol name="paperplane.fill" size={16} color="#FFFFFF" />
+        <ThemedText style={styles.ctaButtonText}>メールを作成する</ThemedText>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -144,6 +178,7 @@ export default function HistoryScreen() {
   const colors = Colors[colorScheme ?? 'light'];
   const history = useMailStore((s) => s.history);
   const router = useRouter();
+  const contentMaxWidth = useContentMaxWidth();
 
   return (
     <ThemedView style={styles.container}>
@@ -162,8 +197,9 @@ export default function HistoryScreen() {
           contentContainerStyle={[
             styles.listContent,
             history.length === 0 && styles.listContentEmpty,
+            contentMaxWidth ? { maxWidth: contentMaxWidth + 48, alignSelf: 'center' as const, width: '100%' as const } : undefined,
           ]}
-          ListEmptyComponent={<EmptyState colors={colors} />}
+          ListEmptyComponent={<EmptyState colors={colors} onCreatePress={() => router.push('/create/simple')} />}
           showsVerticalScrollIndicator={false}
         />
     </ThemedView>
@@ -241,7 +277,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
   },
   emptyIconContainer: {
     width: 80,
@@ -261,5 +297,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  stepsContainer: {
+    width: '100%',
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 24,
+    padding: 16,
+    gap: 14,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  stepNumber: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumberText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  stepText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 14,
+  },
+  ctaButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

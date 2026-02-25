@@ -20,6 +20,7 @@ type MailState = {
   situation: string;
   tone: ToneSettings;
   additionalInfo: AdditionalInfo;
+  writingStyleNotes: string;
   templateId: string | null;
 
   // Recipient info for sending
@@ -47,6 +48,7 @@ type MailState = {
   setSituation: (situation: string) => void;
   setTone: (tone: Partial<ToneSettings>) => void;
   setAdditionalInfo: (info: Partial<AdditionalInfo>) => void;
+  setWritingStyleNotes: (notes: string) => void;
   setTemplateId: (id: string | null) => void;
   setRecipientInfo: (name: string, email: string) => void;
   addCc: (email: string) => void;
@@ -86,6 +88,7 @@ const INITIAL_CREATION_STATE = {
   situation: '',
   tone: DEFAULT_TONE,
   additionalInfo: DEFAULT_ADDITIONAL_INFO,
+  writingStyleNotes: '',
   templateId: null,
   recipientName: '',
   recipientEmail: '',
@@ -119,6 +122,8 @@ export const useMailStore = create<MailState>()(
         set((state) => ({
           additionalInfo: { ...state.additionalInfo, ...info },
         })),
+
+      setWritingStyleNotes: (notes) => set({ writingStyleNotes: notes }),
 
       setTemplateId: (id) => set({ templateId: id }),
 

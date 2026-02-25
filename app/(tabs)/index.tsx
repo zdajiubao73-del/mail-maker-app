@@ -12,6 +12,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMailStore } from '@/store/use-mail-store';
+import { useContentMaxWidth } from '@/hooks/use-responsive';
 
 type ActionCard = {
   title: string;
@@ -39,6 +40,7 @@ export default function HomeScreen() {
   const colors = Colors[colorScheme ?? 'light'];
   const history = useMailStore((s) => s.history);
   const recentHistory = history.slice(0, 2);
+  const contentMaxWidth = useContentMaxWidth();
 
   const ACTION_CARDS: ActionCard[] = [
     {
@@ -100,7 +102,10 @@ export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          contentMaxWidth ? { maxWidth: contentMaxWidth + 48, alignSelf: 'center' as const, width: '100%' as const } : undefined,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Section Label */}

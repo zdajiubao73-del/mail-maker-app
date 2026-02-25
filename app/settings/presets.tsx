@@ -17,6 +17,13 @@ import { usePresetStore } from '@/store/use-preset-store';
 import { useMailStore } from '@/store/use-mail-store';
 import type { Preset } from '@/types/preset';
 
+const PRESET_STEPS = [
+  { icon: 'paperplane.fill' as const, text: 'メールを作成する' },
+  { icon: 'eye.fill' as const, text: 'プレビュー画面で内容を確認' },
+  { icon: 'tray.full.fill' as const, text: '「保存」で文章を保存' },
+  { icon: 'bolt.fill' as const, text: '次回からワンタップで呼び出し' },
+];
+
 function PresetItem({
   preset,
   colors,
@@ -170,14 +177,44 @@ export default function PresetsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={[styles.emptyIconContainer, { backgroundColor: colors.tint + '12' }]}>
-              <IconSymbol name="slider.horizontal.3" size={40} color={colors.tint} />
+              <IconSymbol name="tray.full.fill" size={40} color={colors.tint} />
             </View>
             <ThemedText style={styles.emptyText}>
               保存した文章がありません
             </ThemedText>
             <ThemedText style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-              プレビュー画面から文章を保存すると、ワンタップで呼び出せます
+              よく使うメールを保存して、次回からワンタップで再利用できます
             </ThemedText>
+
+            {/* How to save steps */}
+            <View style={[styles.stepsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <ThemedText style={[styles.stepsTitle, { color: colors.text }]}>
+                保存する方法
+              </ThemedText>
+              {PRESET_STEPS.map((step, index) => (
+                <View key={index} style={styles.stepRow}>
+                  <View style={[styles.stepNumber, { backgroundColor: colors.tint + '15' }]}>
+                    <ThemedText style={[styles.stepNumberText, { color: colors.tint }]}>
+                      {index + 1}
+                    </ThemedText>
+                  </View>
+                  <IconSymbol name={step.icon} size={15} color={colors.icon} />
+                  <ThemedText style={[styles.stepText, { color: colors.textSecondary }]}>
+                    {step.text}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+
+            {/* CTA */}
+            <TouchableOpacity
+              style={[styles.ctaButton, { backgroundColor: colors.tint }]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/create/simple')}
+            >
+              <IconSymbol name="paperplane.fill" size={16} color="#FFFFFF" />
+              <ThemedText style={styles.ctaButtonText}>メールを作成する</ThemedText>
+            </TouchableOpacity>
           </View>
         }
         showsVerticalScrollIndicator={false}
@@ -260,7 +297,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
   },
   emptyIconContainer: {
     width: 80,
@@ -281,5 +318,52 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-
+  stepsContainer: {
+    width: '100%',
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 24,
+    padding: 16,
+    gap: 12,
+  },
+  stepsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  stepNumber: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumberText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  stepText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 14,
+  },
+  ctaButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
 });

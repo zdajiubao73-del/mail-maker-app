@@ -30,6 +30,7 @@ type LearningContext = {
   averageBodyLength?: number;
   signature?: string;
   writingStyleNotes?: string;
+  openingText?: string;
 };
 
 type MailGenerationRequest = {
@@ -52,7 +53,11 @@ type MailGenerationRequest = {
     properNouns?: string;
     notes?: string;
   };
+  writingStyleNotes?: string;
+  openingText?: string;
+  signature?: string;
   templateId?: string;
+  regenerationInstruction?: string;
   learningContext?: LearningContext;
 };
 
@@ -126,6 +131,46 @@ function validateRequest(body: unknown): { valid: true; data: MailGenerationRequ
     return { valid: false, error: "additionalInfo.keyPoints は文字列が必要です。" };
   }
 
+  // writingStyleNotes バリデーション（任意フィールド）
+  if (req.writingStyleNotes !== undefined && req.writingStyleNotes !== null) {
+    if (typeof req.writingStyleNotes !== "string") {
+      return { valid: false, error: "writingStyleNotes は文字列が必要です。" };
+    }
+    if (req.writingStyleNotes.length > 500) {
+      return { valid: false, error: "writingStyleNotes は500文字以内にしてください。" };
+    }
+  }
+
+  // openingText バリデーション（任意フィールド）
+  if (req.openingText !== undefined && req.openingText !== null) {
+    if (typeof req.openingText !== "string") {
+      return { valid: false, error: "openingText は文字列が必要です。" };
+    }
+    if (req.openingText.length > 300) {
+      return { valid: false, error: "openingText は300文字以内にしてください。" };
+    }
+  }
+
+  // signature バリデーション（任意フィールド）
+  if (req.signature !== undefined && req.signature !== null) {
+    if (typeof req.signature !== "string") {
+      return { valid: false, error: "signature は文字列が必要です。" };
+    }
+    if (req.signature.length > 500) {
+      return { valid: false, error: "signature は500文字以内にしてください。" };
+    }
+  }
+
+  // regenerationInstruction バリデーション（任意フィールド）
+  if (req.regenerationInstruction !== undefined && req.regenerationInstruction !== null) {
+    if (typeof req.regenerationInstruction !== "string") {
+      return { valid: false, error: "regenerationInstruction は文字列が必要です。" };
+    }
+    if (req.regenerationInstruction.length > 300) {
+      return { valid: false, error: "regenerationInstruction は300文字以内にしてください。" };
+    }
+  }
+
   // learningContext バリデーション（任意フィールド）
   if (req.learningContext && typeof req.learningContext === "object") {
     const lc = req.learningContext as Record<string, unknown>;
@@ -135,6 +180,9 @@ function validateRequest(body: unknown): { valid: true; data: MailGenerationRequ
     }
     if (typeof lc.writingStyleNotes === "string" && lc.writingStyleNotes.length > 500) {
       return { valid: false, error: "learningContext.writingStyleNotes は500文字以内にしてください。" };
+    }
+    if (typeof lc.openingText === "string" && lc.openingText.length > 300) {
+      return { valid: false, error: "learningContext.openingText は300文字以内にしてください。" };
     }
     // 配列フィールドの要素数制限
     if (Array.isArray(lc.preferredOpenings) && lc.preferredOpenings.length > 10) {
@@ -419,14 +467,28 @@ ${scenarioGuidance}`;
     prompt += `\n\n${urgencyGuidance}`;
   }
 
-  // learningContext がある場合、文体傾向セクションを追加
+  // 文頭に入れる文章（top-level を優先、なければ learningContext）
+  const openingText = req.openingText ?? req.learningContext?.openingText;
+  if (openingText) {
+    prompt += `\n\n## 文頭に入れる文章（必須）
+以下の文章をメール本文の最初にそのまま使用してください。この文章の後に続けて本題を書いてください。
+文頭テキスト: ${sanitizeUserInput(openingText)}`;
+  }
+
+  // 署名（top-level を優先、なければ learningContext）
+  const signature = req.signature ?? req.learningContext?.signature;
+  if (signature) {
+    prompt += `\n\n## 署名（必須）
+以下の署名をメール本文の末尾にそのまま使用してください。署名の内容は変更しないでください。
+署名: ${sanitizeUserInput(signature)}`;
+  }
+
+  // learningContext がある場合
   if (req.learningContext) {
     const lc = req.learningContext;
-    const learningLines: string[] = [];
-    learningLines.push("\n\n## ユーザーの文体傾向（参考情報）");
-    learningLines.push("以下はこのユーザーの過去のメール傾向です。可能な限り反映してください。");
-    learningLines.push("ただし今回の設定が明示的に指定されている場合はそちらを優先してください。");
 
+    // 統計ベースの文体傾向（参考情報）
+    const learningLines: string[] = [];
     if (lc.preferredOpenings && lc.preferredOpenings.length > 0) {
       learningLines.push(`- よく使う書き出し: ${lc.preferredOpenings.map((o) => `「${sanitizeUserInput(o)}`).join("、")}`);
     }
@@ -436,14 +498,12 @@ ${scenarioGuidance}`;
     if (lc.averageBodyLength && lc.averageBodyLength > 0) {
       learningLines.push(`- 平均文字数: 約${lc.averageBodyLength}文字`);
     }
-    if (lc.signature) {
-      learningLines.push(`- 署名: ${sanitizeUserInput(lc.signature)}`);
-    }
-    if (lc.writingStyleNotes) {
-      learningLines.push(`- 文体メモ: ${sanitizeUserInput(lc.writingStyleNotes)}`);
-    }
 
-    prompt += learningLines.join("\n");
+    if (learningLines.length > 0) {
+      prompt += "\n\n## ユーザーの文体傾向（参考情報）";
+      prompt += "\n以下はこのユーザーの過去のメール傾向です。可能な限り反映してください。";
+      prompt += "\n" + learningLines.join("\n");
+    }
   }
 
   prompt += `
@@ -459,7 +519,22 @@ ${lengthGuide[req.tone.mailLength]}
 - 不自然な接続詞の連発（「また」「なお」「つきましては」を立て続けに使わない）
 - 「〜の方」「〜になります」「〜してあげる」等の誤用敬語
 - 「〜と思います」の連発（自信がなさそうに見える）
-- 一文が長すぎる（60文字を超えたら分割を検討）
+- 一文が長すぎる（60文字を超えたら分割を検討）`;
+
+  // writingStyleNotes は出力ルール直前に配置（LLMが末尾の指示を最も重視するため）
+  // top-level writingStyleNotes（作成画面の文体設定）を優先、なければ learningContext のものを使用
+  const writingStyleNotes = req.writingStyleNotes ?? req.learningContext?.writingStyleNotes;
+  if (writingStyleNotes) {
+    const notes = sanitizeUserInput(writingStyleNotes);
+    prompt += `
+
+## ユーザーからの文体指示（最優先 — 必ず従うこと）
+ユーザーが以下の文体指示を設定しています。上記の敬語レベル・雰囲気の設定よりもこの指示を優先してください。
+メール全体をこの指示に従った文体で書いてください。
+指示: 「${notes}」`;
+  }
+
+  prompt += `
 
 ## 出力ルール
 
@@ -504,6 +579,19 @@ function buildUserPrompt(req: MailGenerationRequest): string {
     lines.push("");
     lines.push("含めるべき情報:");
     lines.push(additionalParts.join("\n"));
+  }
+
+  // writingStyleNotes をユーザープロンプトにも明示的に含める
+  const userWritingStyleNotes = req.writingStyleNotes ?? req.learningContext?.writingStyleNotes;
+  if (userWritingStyleNotes) {
+    lines.push("");
+    lines.push(`【重要】文体指示: 「${sanitizeUserInput(userWritingStyleNotes)}」で書いてください。`);
+  }
+
+  // regenerationInstruction がある場合、末尾に追記
+  if (req.regenerationInstruction) {
+    lines.push("");
+    lines.push(`【再生成の指示】以下のユーザーの修正指示に従ってメールを調整してください:\n「${sanitizeUserInput(req.regenerationInstruction)}」`);
   }
 
   return lines.join("\n");
@@ -595,13 +683,14 @@ function getCorsHeaders(req: Request): Record<string, string> {
 // --- APIキー認証 ---
 
 function authenticateRequest(req: Request): boolean {
-  if (!SUPABASE_ANON_KEY) return true; // キー未設定時はスキップ（開発環境）
-
+  // Supabase gateway が API キーを検証済みのため、
+  // apikey または Authorization ヘッダーが存在することを確認する。
+  // 注: SUPABASE_ANON_KEY が新フォーマット (sb_publishable_*) に移行したため
+  // 旧フォーマット (JWT) との文字列比較は行わない。
   const apikey = req.headers.get("apikey");
   const authHeader = req.headers.get("Authorization");
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-  return apikey === SUPABASE_ANON_KEY || bearerToken === SUPABASE_ANON_KEY;
+  return !!(apikey || authHeader);
 }
 
 // --- メインハンドラー ---

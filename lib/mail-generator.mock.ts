@@ -1,7 +1,7 @@
 // モックAIメール生成サービス
 // バックエンド未構築のため、入力パラメータに基づいてリアルなモック日本語メールを生成する
 
-import type { MailGenerationRequest, GeneratedMail, HonorificsLevel } from '@/types/mail';
+import type { MailGenerationRequest, GeneratedMail, HonorificsLevel, MailLength, Atmosphere, Urgency } from '@/types/mail';
 
 /**
  * シチュエーションに応じた件名を生成する
@@ -338,6 +338,70 @@ function generateId(): string {
 }
 
 /**
+ * 再生成指示を解析して生成パラメータを上書きする（モック用）
+ *
+ * 指示内容に応じて敬語レベル・長さなどのパラメータを変更し、
+ * テキスト内の語句置換も行う。
+ */
+function parseRegenerationInstruction(
+  instruction: string,
+  tone: { honorificsLevel: HonorificsLevel; mailLength: MailLength; atmosphere: Atmosphere; urgency: Urgency },
+): {
+  tone: { honorificsLevel: HonorificsLevel; mailLength: MailLength; atmosphere: Atmosphere; urgency: Urgency };
+  textReplacements: Array<{ from: string; to: string }>;
+} {
+  const newTone = { ...tone };
+  const textReplacements: Array<{ from: string; to: string }> = [];
+
+  // カジュアルに・やわらかく → 敬語レベルを下げる
+  if (/(?:もっと|より)?(?:カジュアル|やわらか|柔らか|親しみやす|くだけ|フランク|ラフ)/.test(instruction)) {
+    if (newTone.honorificsLevel === '最敬体') newTone.honorificsLevel = '丁寧';
+    else if (newTone.honorificsLevel === '丁寧') newTone.honorificsLevel = '普通';
+    else newTone.honorificsLevel = 'カジュアル';
+    newTone.atmosphere = '親しみやすい';
+  }
+
+  // 丁寧に・フォーマルに → 敬語レベルを上げる
+  if (/(?:もっと|より)?(?:丁寧|フォーマル|堅[くい]|かしこま|礼儀正し|格式)/.test(instruction)) {
+    if (newTone.honorificsLevel === 'カジュアル') newTone.honorificsLevel = '普通';
+    else if (newTone.honorificsLevel === '普通') newTone.honorificsLevel = '丁寧';
+    else newTone.honorificsLevel = '最敬体';
+    newTone.atmosphere = '堅い';
+  }
+
+  // 短く・簡潔に → 長さを短める
+  if (/(?:もっと|より)?(?:短[くめい]|簡潔|コンパクト|シンプル|要点だけ)/.test(instruction)) {
+    if (newTone.mailLength === '長め') newTone.mailLength = '標準';
+    else newTone.mailLength = '短め';
+  }
+
+  // 長く・詳しく → 長さを伸ばす
+  if (/(?:もっと|より)?(?:長[くめい]|詳し[くい]|詳細|丁寧に説明|具体的)/.test(instruction)) {
+    if (newTone.mailLength === '短め') newTone.mailLength = '標準';
+    else newTone.mailLength = '長め';
+  }
+
+  // 語句置換: 「AをBに（変えて|して|変更して）」
+  const replacePatterns = [
+    /(.+?)を(.+?)に(?:変えて|して|変更して|修正して|書き換えて|直して)/g,
+    /(.+?)→(.+)/g,
+    /「(.+?)」を「(.+?)」/g,
+  ];
+  for (const pattern of replacePatterns) {
+    let match;
+    while ((match = pattern.exec(instruction)) !== null) {
+      const from = match[1].trim();
+      const to = match[2].trim().replace(/(?:ください|下さい|にして)$/g, '');
+      if (from && to) {
+        textReplacements.push({ from, to });
+      }
+    }
+  }
+
+  return { tone: newTone, textReplacements };
+}
+
+/**
  * メールを生成する（モック実装）
  *
  * 将来的にはバックエンドのAI APIを呼び出すが、
@@ -351,30 +415,40 @@ export async function generateMail(
     setTimeout(resolve, 1000 + Math.random() * 1000),
   );
 
-  const { recipient, purposeCategory, situation, tone, additionalInfo, learningContext } =
+  const { recipient, purposeCategory, situation, additionalInfo, learningContext } =
     request;
 
+  // 再生成指示がある場合はパラメータを上書き
+  let effectiveTone = { ...request.tone };
+  let textReplacements: Array<{ from: string; to: string }> = [];
+  if (request.regenerationInstruction) {
+    const parsed = parseRegenerationInstruction(request.regenerationInstruction, effectiveTone);
+    effectiveTone = parsed.tone;
+    textReplacements = parsed.textReplacements;
+  }
+
   // 件名の生成
-  const subject = generateSubject(situation, purposeCategory);
+  let subject = generateSubject(situation, purposeCategory);
 
   // 本文の組み立て
-  // learningContext の書き出しがあればそちらを優先
+  // top-level の openingText を優先、なければ learningContext を使用
+  const openingText = request.openingText ?? learningContext?.openingText ?? null;
   const opening = learningContext?.preferredOpenings?.[0]
     ?? generateOpening(
-      tone.honorificsLevel,
+      effectiveTone.honorificsLevel,
       recipient.scope,
       recipient.relationship,
     );
 
   const mainContent = generateMainContent(
     situation,
-    tone.honorificsLevel,
+    effectiveTone.honorificsLevel,
     additionalInfo.keyPoints,
-    tone.atmosphere,
-    tone.mailLength,
+    effectiveTone.atmosphere,
+    effectiveTone.mailLength,
   );
 
-  const closing = generateClosing(tone.honorificsLevel, tone.urgency);
+  const closing = generateClosing(effectiveTone.honorificsLevel, effectiveTone.urgency);
 
   // 日時情報がある場合は本文に含める
   let dateTimeNote = '';
@@ -385,7 +459,7 @@ export async function generateMail(
   // 補足事項
   let notesSection = '';
   if (additionalInfo.notes) {
-    if (tone.honorificsLevel === 'カジュアル') {
+    if (effectiveTone.honorificsLevel === 'カジュアル') {
       notesSection = `\n\n※ ${additionalInfo.notes}`;
     } else {
       notesSection = `\n\n【補足】\n${additionalInfo.notes}`;
@@ -393,6 +467,7 @@ export async function generateMail(
   }
 
   const bodyParts = [
+    ...(openingText ? [openingText, ''] : []),
     opening,
     '',
     mainContent,
@@ -403,9 +478,21 @@ export async function generateMail(
 
   let body = bodyParts.join('\n');
 
-  // learningContext の署名があれば末尾に追加
-  if (learningContext?.signature) {
-    body += `\n\n${learningContext.signature}`;
+  // writingStyleNotes が指定されている場合は注記を追加（デバッグ確認用）
+  if (request.writingStyleNotes) {
+    body += `\n\n※文体指示: ${request.writingStyleNotes}`;
+  }
+
+  // regenerationInstruction の語句置換を適用
+  for (const { from, to } of textReplacements) {
+    subject = subject.split(from).join(to);
+    body = body.split(from).join(to);
+  }
+
+  // 署名を末尾に追加（top-level を優先、なければ learningContext）
+  const signature = request.signature ?? learningContext?.signature;
+  if (signature) {
+    body += `\n\n${signature}`;
   }
 
   return {
