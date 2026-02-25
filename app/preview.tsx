@@ -37,7 +37,7 @@ type GenerationSnapshot = {
 };
 
 const MAX_REGENERATIONS = 3;
-const MAX_ATTACHMENT_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_ATTACHMENT_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -166,7 +166,7 @@ export default function PreviewScreen() {
     for (const asset of result.assets) {
       const newSize = totalAttachmentSize + (asset.fileSize ?? 0);
       if (newSize > MAX_ATTACHMENT_TOTAL_SIZE) {
-        Alert.alert('ファイルサイズ超過', '添付ファイルの合計サイズが25MBを超えています');
+        Alert.alert('ファイルサイズ超過', '添付ファイルの合計サイズが50MBを超えています');
         return;
       }
       const attachment: Attachment = {
@@ -191,7 +191,7 @@ export default function PreviewScreen() {
     for (const asset of result.assets) {
       const newSize = totalAttachmentSize + (asset.size ?? 0);
       if (newSize > MAX_ATTACHMENT_TOTAL_SIZE) {
-        Alert.alert('ファイルサイズ超過', '添付ファイルの合計サイズが25MBを超えています');
+        Alert.alert('ファイルサイズ超過', '添付ファイルの合計サイズが50MBを超えています');
         return;
       }
       const attachment: Attachment = {
@@ -238,6 +238,7 @@ export default function PreviewScreen() {
         templateId: templateId ?? undefined,
         learningContext,
         regenerationInstruction: instruction || undefined,
+        previousMail: instruction ? { subject: editedSubject, body: editedBody } : undefined,
       });
 
       // Save current edits to snapshot and truncate forward history
@@ -825,7 +826,7 @@ export default function PreviewScreen() {
             </ThemedText>
             {attachments.length > 0 && (
               <ThemedText style={[styles.attachmentSizeText, { color: colors.textSecondary }]}>
-                {formatFileSize(totalAttachmentSize)} / 25 MB
+                {formatFileSize(totalAttachmentSize)} / 50 MB
               </ThemedText>
             )}
           </View>

@@ -69,6 +69,7 @@ export type MailGenerationRequest = {
   signature?: string;
   templateId?: string;
   regenerationInstruction?: string;
+  previousMail?: { subject: string; body: string };
   learningContext?: {
     preferredOpenings?: string[];
     preferredClosings?: string[];

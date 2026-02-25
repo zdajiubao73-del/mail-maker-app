@@ -58,6 +58,7 @@ type MailGenerationRequest = {
   signature?: string;
   templateId?: string;
   regenerationInstruction?: string;
+  previousMail?: { subject: string; body: string };
   learningContext?: LearningContext;
 };
 
@@ -168,6 +169,23 @@ function validateRequest(body: unknown): { valid: true; data: MailGenerationRequ
     }
     if (req.regenerationInstruction.length > 300) {
       return { valid: false, error: "regenerationInstruction は300文字以内にしてください。" };
+    }
+  }
+
+  // previousMail バリデーション（任意フィールド）
+  if (req.previousMail !== undefined && req.previousMail !== null) {
+    if (typeof req.previousMail !== "object") {
+      return { valid: false, error: "previousMail はオブジェクトが必要です。" };
+    }
+    const pm = req.previousMail as Record<string, unknown>;
+    if (typeof pm.subject !== "string" || typeof pm.body !== "string") {
+      return { valid: false, error: "previousMail.subject と previousMail.body は文字列が必要です。" };
+    }
+    if ((pm.subject as string).length > 200) {
+      return { valid: false, error: "previousMail.subject は200文字以内にしてください。" };
+    }
+    if ((pm.body as string).length > 5000) {
+      return { valid: false, error: "previousMail.body は5000文字以内にしてください。" };
     }
   }
 
@@ -588,8 +606,23 @@ function buildUserPrompt(req: MailGenerationRequest): string {
     lines.push(`【重要】文体指示: 「${sanitizeUserInput(userWritingStyleNotes)}」で書いてください。`);
   }
 
-  // regenerationInstruction がある場合、末尾に追記
-  if (req.regenerationInstruction) {
+  // regenerationInstruction + previousMail がある場合、元のメールを修正するプロンプトに切り替え
+  if (req.regenerationInstruction && req.previousMail) {
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+    lines.push("【重要：再生成モード】");
+    lines.push("以下は先ほど生成したメールです。ユーザーの修正指示に従って、このメールを書き直してください。");
+    lines.push("修正指示に関係ない部分はできるだけ維持し、指示された箇所を重点的に変更してください。");
+    lines.push("");
+    lines.push("■ 先ほど生成したメール:");
+    lines.push(`件名: ${sanitizeUserInput(req.previousMail.subject)}`);
+    lines.push(`本文:\n${sanitizeUserInput(req.previousMail.body)}`);
+    lines.push("");
+    lines.push(`■ ユーザーの修正指示: 「${sanitizeUserInput(req.regenerationInstruction)}」`);
+    lines.push("");
+    lines.push("上記の修正指示に従ってメールを書き直してください。出力はJSON形式（{\"subject\": \"...\", \"body\": \"...\"}）で。");
+  } else if (req.regenerationInstruction) {
     lines.push("");
     lines.push(`【再生成の指示】以下のユーザーの修正指示に従ってメールを調整してください:\n「${sanitizeUserInput(req.regenerationInstruction)}」`);
   }

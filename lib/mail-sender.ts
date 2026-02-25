@@ -13,7 +13,7 @@ import {
 } from '@/lib/microsoft-auth';
 import { isValidEmail, validateRecipientCounts } from '@/lib/validation';
 
-const MAX_ATTACHMENT_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_ATTACHMENT_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
 
 /** メール送信パラメータ */
 export type SendMailParams = {
@@ -85,7 +85,7 @@ function validateInput(params: SendMailParams): string | null {
     const totalSize = params.attachments.reduce((sum, a) => sum + a.size, 0);
     if (totalSize > MAX_ATTACHMENT_TOTAL_SIZE) {
       const sizeMB = (totalSize / (1024 * 1024)).toFixed(1);
-      return `添付ファイルの合計サイズが上限（25MB）を超えています（現在: ${sizeMB}MB）。`;
+      return `添付ファイルの合計サイズが上限（50MB）を超えています（現在: ${sizeMB}MB）。`;
     }
   }
 
