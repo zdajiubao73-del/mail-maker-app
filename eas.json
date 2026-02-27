@@ -16,6 +16,10 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_USE_MOCK_AI": "false"
       }
     },
     "preview": {
@@ -24,7 +28,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_USE_MOCK_AI": "false"
       }
     }
   },
