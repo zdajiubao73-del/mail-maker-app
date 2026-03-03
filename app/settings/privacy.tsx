@@ -15,6 +15,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { clearAllLocalData } from '@/lib/data-cleaner';
+import { useConsentStore } from '@/store/use-consent-store';
 
 /* -------------------------------------------------------------------------- */
 /*  Privacy sections                                                           */
@@ -23,8 +24,9 @@ import { clearAllLocalData } from '@/lib/data-cleaner';
 const PRIVACY_SECTIONS = [
   { title: '収集する情報', body: '本アプリでは、以下の情報を収集・利用します。\n\n・認証情報（Apple ID、Googleアカウントのメールアドレス・表示名）\n・メール作成に必要な入力情報（送信相手の関係性、メールの目的、トーン設定、要点等）\n・メール送信先のメールアドレス\n・アプリ利用履歴（生成履歴、設定情報）\n・端末情報（OSバージョン、アプリバージョン）' },
   { title: '情報の利用目的', body: '収集した情報は、以下の目的で利用します。\n\n・AIによるメール文面の生成\n・メールの送信処理\n・アプリの機能改善\n・ユーザーサポート\n・利用状況の分析' },
-  { title: '情報の第三者提供', body: '以下の場合を除き、ユーザーの個人情報を第三者に提供することはありません。\n\n・ユーザーの同意がある場合\n・法令に基づく場合\n・サービス提供に必要な業務委託先（AI API提供元、メールサービス提供元）への提供' },
-  { title: 'データの保管と削除', body: '・端末内のデータはアプリのアンインストールにより削除されます\n・サーバー上のデータはアカウント削除リクエストから30日以内に削除されます\n・OAuth認証トークンは端末内のセキュアストレージに保存されます' },
+  { title: '第三者AIサービスとのデータ共有', body: '本アプリは、メール文面を生成するためにOpenAI, Inc.（米国）が提供するAI API（GPT）を利用しています。\n\n【送信されるデータ】\n・送信相手の関係性（上司・同僚・取引先等）\n・メールの目的・シチュエーション\n・トーン設定（敬語レベル・文章の長さ等）\n・追加情報（要点・日時・固有名詞等）\n・署名・文体の設定\n\n【送信されないデータ】\n・メール送信先のメールアドレス\n・認証情報（Apple ID、Googleアカウント）\n\n【データの取り扱い】\n・送信されたデータはメール生成のみに使用されます\n・OpenAI, Inc.（米国）はAPI経由で送信されたデータをAIモデルの学習に使用しません（API Data Usage Policy）\n・通信はすべてHTTPS（SSL/TLS）で暗号化されます\n・初回のメール生成時にユーザーの同意を取得します' },
+  { title: 'その他の第三者提供', body: '前項に定める場合を除き、以下の場合にのみユーザーの個人情報を第三者に提供します。\n\n・ユーザーの同意がある場合\n・法令に基づく場合\n・メール送信サービス提供元（Gmail API、Microsoft Graph API）への送信処理に必要な情報の提供' },
+  { title: 'データの保管と削除', body: '・端末内のデータはアプリのアンインストールにより削除されます\n・サーバー上のデータはアカウント削除リクエストから30日以内に削除されます\n・OAuth認証トークンは端末内のセキュアストレージに保存されます\n・AIデータ利用の同意はいつでも撤回できます（設定画面より）' },
   { title: 'お問い合わせ', body: 'プライバシーに関するお問い合わせは下記までご連絡ください。\n\nメールアドレス: apuriyong500@gmail.com' },
 ];
 
@@ -35,9 +37,30 @@ const PRIVACY_SECTIONS = [
 export default function PrivacyScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const hasAgreedToAIDataUsage = useConsentStore((s) => s.hasAgreedToAIDataUsage);
+  const agreedAt = useConsentStore((s) => s.agreedAt);
+  const revokeAIDataUsageConsent = useConsentStore((s) => s.revokeAIDataUsageConsent);
 
   const cardBg = colorScheme === 'dark' ? '#1E2022' : '#FFFFFF';
   const dividerColor = colorScheme === 'dark' ? '#2C2F33' : '#E5E5EA';
+
+  const handleRevokeConsent = useCallback(() => {
+    Alert.alert(
+      'AIデータ利用の同意を撤回',
+      '同意を撤回すると、次回メール生成時に再度同意が必要になります。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '撤回する',
+          style: 'destructive',
+          onPress: () => {
+            revokeAIDataUsageConsent();
+            Alert.alert('完了', 'AIデータ利用の同意を撤回しました。');
+          },
+        },
+      ],
+    );
+  }, [revokeAIDataUsageConsent]);
 
   const handleDataDeletionRequest = useCallback(() => {
     Alert.alert(
@@ -98,7 +121,7 @@ export default function PrivacyScreen() {
               プライバシーポリシー
             </ThemedText>
             <ThemedText style={[styles.headerSubtitle, { color: colors.icon }]}>
-              最終更新日: 2026年2月18日
+              最終更新日: 2026年2月26日
             </ThemedText>
           </View>
 
@@ -138,6 +161,31 @@ export default function PrivacyScreen() {
               </View>
             </View>
           ))}
+
+          {/* AI consent status & revocation */}
+          <View style={[styles.consentSection, { backgroundColor: cardBg }]}>
+            <View style={styles.consentHeader}>
+              <IconSymbol name="brain.head.profile" size={20} color={colors.tint} />
+              <ThemedText type="defaultSemiBold" style={styles.consentTitle}>
+                AIデータ利用の同意状況
+              </ThemedText>
+            </View>
+            <View style={[styles.policyDivider, { backgroundColor: dividerColor }]} />
+            <ThemedText style={styles.consentStatus}>
+              {hasAgreedToAIDataUsage
+                ? `AIデータ利用に同意済みです。${agreedAt ? `\n同意日時: ${new Date(agreedAt).toLocaleString('ja-JP')}` : ''}`
+                : 'AIデータ利用に未同意です。メール生成時に同意が求められます。'}
+            </ThemedText>
+            {hasAgreedToAIDataUsage && (
+              <TouchableOpacity
+                style={[styles.revokeButton, { borderColor: '#FF3B3040' }]}
+                activeOpacity={0.7}
+                onPress={handleRevokeConsent}
+              >
+                <ThemedText style={styles.revokeButtonText}>同意を撤回する</ThemedText>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Data deletion button */}
           <View style={styles.deletionSection}>
@@ -239,6 +287,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     opacity: 0.85,
+  },
+
+  /* AI consent */
+  consentSection: {
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  consentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  consentTitle: {
+    fontSize: 16,
+  },
+  consentStatus: {
+    fontSize: 14,
+    lineHeight: 22,
+    opacity: 0.85,
+    marginBottom: 12,
+  },
+  revokeButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  revokeButtonText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   /* Data deletion */

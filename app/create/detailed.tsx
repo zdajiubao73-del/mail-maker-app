@@ -17,11 +17,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ContactPickerModal } from '@/components/contact-picker-modal';
 import { PaywallModal } from '@/components/paywall-modal';
+import { AIConsentModal } from '@/components/ai-consent-modal';
 import { useMailStore } from '@/store/use-mail-store';
 import { usePlanStore } from '@/store/use-plan-store';
 import { SITUATIONS, type SituationItem } from '@/constants/situations';
 import { Colors } from '@/constants/theme';
 import { generateMail } from '@/lib/mail-generator';
+import { useConsentStore } from '@/store/use-consent-store';
 import { useLearningStore } from '@/store/use-learning-store';
 import { buildLearningContext } from '@/lib/learning-analyzer';
 import { useResponsivePadding, useContentMaxWidth } from '@/hooks/use-responsive';
@@ -149,6 +151,7 @@ export default function DetailedCreateScreen() {
   // Contact picker
   const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
   const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
 
   const handleContactSelected = useCallback((contact: Contact) => {
     setRecipientName(contact.name);
@@ -236,9 +239,19 @@ export default function DetailedCreateScreen() {
       return;
     }
     if (!canGenerate()) {
-      Alert.alert('生成上限に達しました', '今月の生成上限に達しました。来月までお待ちください。');
+      Alert.alert('生成上限に達しました', '今月の生成上限に達しました。プレミアムプランにアップグレードすると、より多くのメールを生成できます。', [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: 'プランを見る', onPress: () => router.push('/settings/plan') },
+      ]);
       return;
     }
+
+    // AIデータ利用の同意チェック
+    if (!useConsentStore.getState().hasAgreedToAIDataUsage) {
+      setShowConsentModal(true);
+      return;
+    }
+
     const recipient = {
       relationship: selectedRelationship,
       scope: selectedScope,
@@ -1055,6 +1068,14 @@ export default function DetailedCreateScreen() {
       <PaywallModal
         visible={showPaywallModal}
         onClose={() => setShowPaywallModal(false)}
+      />
+      <AIConsentModal
+        visible={showConsentModal}
+        onAgree={() => {
+          setShowConsentModal(false);
+          handleGenerate();
+        }}
+        onDecline={() => setShowConsentModal(false)}
       />
     </ThemedView>
   );

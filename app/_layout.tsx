@@ -23,6 +23,7 @@ import { useAuthStore } from '@/store/use-auth-store';
 import { usePresetStore } from '@/store/use-preset-store';
 import { useLearningStore } from '@/store/use-learning-store';
 import { useOnboardingStore } from '@/store/use-onboarding-store';
+import { useConsentStore } from '@/store/use-consent-store';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -53,6 +54,7 @@ function useHydration() {
       waitForHydration(usePresetStore),
       waitForHydration(useLearningStore),
       waitForHydration(useOnboardingStore),
+      waitForHydration(useConsentStore),
     ]).then(() => setHydrated(true));
   }, []);
 
