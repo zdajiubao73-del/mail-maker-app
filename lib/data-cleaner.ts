@@ -14,6 +14,7 @@ import { useLearningStore } from '@/store/use-learning-store';
 import { usePresetStore } from '@/store/use-preset-store';
 import { usePlanStore } from '@/store/use-plan-store';
 import { useAuthStore } from '@/store/use-auth-store';
+import { useConsentStore } from '@/store/use-consent-store';
 
 /**
  * 全ストアのデータをリセットする（ローカル永続化データも消去される）
@@ -44,6 +45,9 @@ function clearAllStores() {
 
   // メールアカウント連携をリセット
   useAuthStore.setState({ mailAccounts: [] });
+
+  // AIデータ利用同意をリセット
+  useConsentStore.getState().revokeAIDataUsageConsent();
 }
 
 /**

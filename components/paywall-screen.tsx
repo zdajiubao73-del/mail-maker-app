@@ -193,7 +193,7 @@ export default function PaywallScreen({ onClose }: Props) {
             </ThemedText>
             <View style={styles.priceAmountRow}>
               <ThemedText type="title" style={styles.priceAmount}>
-                {monthlyPkg?.product?.priceString ?? `¥${MONTHLY_PRICE.toLocaleString()}`}
+                {`¥${MONTHLY_PRICE.toLocaleString()}`}
               </ThemedText>
               <ThemedText style={[styles.pricePeriod, { color: colors.textSecondary }]}>
                 /月
@@ -234,7 +234,7 @@ export default function PaywallScreen({ onClose }: Props) {
             </ThemedText>
             <View style={styles.priceAmountRow}>
               <ThemedText type="title" style={styles.priceAmount}>
-                {annualPkg?.product?.priceString ?? `¥${YEARLY_PRICE.toLocaleString()}`}
+                {`¥${YEARLY_PRICE.toLocaleString()}`}
               </ThemedText>
               <ThemedText style={[styles.pricePeriod, { color: colors.textSecondary }]}>
                 /年
@@ -307,10 +307,10 @@ export default function PaywallScreen({ onClose }: Props) {
             {'メールメーカー プレミアム（自動更新サブスクリプション）'}
           </ThemedText>
           <ThemedText style={[styles.subscriptionDetailText, { color: colors.textSecondary }]}>
-            {`月額プラン: ${monthlyPkg?.product?.priceString ?? '¥500'}/月`}
+            {`月額プラン: ¥${MONTHLY_PRICE.toLocaleString()}/月`}
           </ThemedText>
           <ThemedText style={[styles.subscriptionDetailText, { color: colors.textSecondary }]}>
-            {`年額プラン: ${annualPkg?.product?.priceString ?? '¥5,000'}/年`}
+            {`年額プラン: ¥${YEARLY_PRICE.toLocaleString()}/年`}
           </ThemedText>
           <ThemedText style={[styles.subscriptionDetailText, { color: colors.textSecondary }]}>
             {'お支払いはApple IDに請求されます。サブスクリプションは現在の期間終了の24時間前までにキャンセルしない限り自動更新されます。'}

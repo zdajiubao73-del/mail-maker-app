@@ -13,6 +13,7 @@ initSentry();
 LogBox.ignoreLogs(['[RevenueCat]']);
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AIConsentModal } from '@/components/ai-consent-modal';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
 import { initializePurchases, addCustomerInfoListener } from '@/lib/purchases';
@@ -71,6 +72,9 @@ function RootLayout() {
   const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
   const completeOnboarding = useOnboardingStore((s) => s.completeOnboarding);
 
+  const hasAgreedToAIDataUsage = useConsentStore((s) => s.hasAgreedToAIDataUsage);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+
   useEffect(() => {
     (async () => {
       await initializePurchases();
@@ -102,6 +106,14 @@ function RootLayout() {
     router.replace('/onboarding');
   }, [hydrated, hasCompletedOnboarding, completeOnboarding, router]);
 
+  // AI同意: オンボーディング完了済みで未同意のユーザーに同意モーダルを表示
+  useEffect(() => {
+    if (!hydrated || !hasCompletedOnboarding) return;
+    if (!hasAgreedToAIDataUsage) {
+      setShowConsentModal(true);
+    }
+  }, [hydrated, hasCompletedOnboarding, hasAgreedToAIDataUsage]);
+
   if (!hydrated) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -113,6 +125,11 @@ function RootLayout() {
   return (
     <ErrorBoundary>
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AIConsentModal
+        visible={showConsentModal}
+        onAgree={() => setShowConsentModal(false)}
+        onDecline={() => setShowConsentModal(false)}
+      />
       <Stack screenOptions={{
         headerBackVisible: false,
         headerLeft: () => <HeaderBackButton />,

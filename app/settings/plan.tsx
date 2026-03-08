@@ -49,8 +49,12 @@ export default function PlanScreen() {
 
   const monthlyPkg = packages.find((p: any) => p.packageType === 'MONTHLY');
   const annualPkg = packages.find((p: any) => p.packageType === 'ANNUAL');
-  const actualYearlyPrice = annualPkg?.product?.price ?? YEARLY_PRICE;
-  const monthlyPerYear = Math.round(actualYearlyPrice / 12);
+  const monthlyPerYear = Math.round(YEARLY_PRICE / 12);
+
+  /** 価格を日本円フォーマットで表示する（日本向けアプリ） */
+  const formatPrice = (_pkg: any, fallback: number): string => {
+    return `¥${fallback.toLocaleString()}`;
+  };
 
   const features = useMemo(() => [
     `月${PREMIUM_MONTHLY_LIMIT}回までメール生成`,
@@ -236,7 +240,7 @@ export default function PlanScreen() {
                   </ThemedText>
                   <View style={styles.priceAmountRow}>
                     <ThemedText type="title" style={styles.priceAmount}>
-                      {monthlyPkg?.product?.priceString ?? `¥${MONTHLY_PRICE.toLocaleString()}`}
+                      {formatPrice(monthlyPkg, MONTHLY_PRICE)}
                     </ThemedText>
                     <ThemedText style={[styles.pricePeriod, { color: colors.textSecondary }]}>
                       /月
@@ -269,7 +273,7 @@ export default function PlanScreen() {
                   </ThemedText>
                   <View style={styles.priceAmountRow}>
                     <ThemedText type="title" style={styles.priceAmount}>
-                      {annualPkg?.product?.priceString ?? `¥${YEARLY_PRICE.toLocaleString()}`}
+                      {formatPrice(annualPkg, YEARLY_PRICE)}
                     </ThemedText>
                     <ThemedText style={[styles.pricePeriod, { color: colors.textSecondary }]}>
                       /年

@@ -19,7 +19,7 @@ export const useLearningStore = create<LearningState>()(
   persist(
     (set, get) => ({
       profile: null,
-      learningEnabled: true,
+      learningEnabled: false,
 
       analyzeHistory: (history) => {
         const statistics = analyzeMailHistory(history);
