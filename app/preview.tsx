@@ -19,6 +19,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ContactPickerModal } from '@/components/contact-picker-modal';
+import { AccountSelectorModal } from '@/components/account-selector-modal';
 import { useMailStore } from '@/store/use-mail-store';
 import { useAuthStore } from '@/store/use-auth-store';
 import { usePresetStore } from '@/store/use-preset-store';
@@ -349,24 +350,10 @@ export default function PreviewScreen() {
   }, [currentVersionIndex, editedSubject, editedBody, generationHistory, setGeneratedMail]);
 
   const mailAccounts = useAuthStore((s) => s.mailAccounts);
+  const [showAccountSelector, setShowAccountSelector] = useState(false);
 
-  // Send mail
-  const handleSend = useCallback(() => {
-    const authenticatedAccount = mailAccounts.find(
-      (a) => a.authStatus === 'authenticated',
-    );
-
-    if (mailAccounts.length === 0) {
-      Alert.alert(
-        'メールアカウント未登録',
-        '設定画面からメールアカウントを連携してください',
-        [{ text: 'OK' }],
-      );
-      return;
-    }
-
-    const sendAccount = authenticatedAccount ?? mailAccounts[0];
-
+  // Confirm and send with the specified account
+  const confirmAndSend = useCallback((sendAccount: import('@/types/user').MailAccount) => {
     const recipientDisplay = storeRecipientEmail
       ? `\n宛先: ${storeRecipientName
             ? `${storeRecipientName} (${storeRecipientEmail})`
@@ -435,7 +422,27 @@ export default function PreviewScreen() {
         },
       ],
     );
-  }, [editedSubject, editedBody, generatedMail, addHistory, resetCreation, router, mailAccounts, setIsGenerating, storeRecipientName, storeRecipientEmail, cc, bcc, recipient, purposeCategory, situation, tone, attachments]);
+  }, [editedSubject, editedBody, generatedMail, addHistory, resetCreation, router, setIsGenerating, storeRecipientName, storeRecipientEmail, cc, bcc, recipient, purposeCategory, situation, tone, attachments]);
+
+  // Send mail
+  const handleSend = useCallback(() => {
+    if (mailAccounts.length === 0) {
+      Alert.alert(
+        'メールアカウント未登録',
+        '設定画面からメールアカウントを連携してください',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+
+    if (mailAccounts.length === 1) {
+      confirmAndSend(mailAccounts[0]);
+      return;
+    }
+
+    // 複数アカウントがある場合はアカウント選択モーダルを表示
+    setShowAccountSelector(true);
+  }, [mailAccounts, confirmAndSend]);
 
   // Save as draft
   const handleSaveDraft = useCallback(() => {
@@ -1050,6 +1057,12 @@ export default function PreviewScreen() {
         visible={showBccContactPicker}
         onClose={() => setShowBccContactPicker(false)}
         onSelect={handleBccContactSelected}
+      />
+      <AccountSelectorModal
+        visible={showAccountSelector}
+        onClose={() => setShowAccountSelector(false)}
+        accounts={mailAccounts}
+        onSelect={confirmAndSend}
       />
     </ThemedView>
   );
