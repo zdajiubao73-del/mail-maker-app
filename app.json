@@ -95,8 +95,8 @@
         "projectId": "ab3e4be4-ab56-4d8d-bbd8-5384e13724d4"
       },
       "appStoreMetadata": {
-        "primaryCategory": "BUSINESS",
-        "secondaryCategory": "PRODUCTIVITY",
+        "primaryCategory": "PRODUCTIVITY",
+        "secondaryCategory": "BUSINESS",
         "keywords": "メール,AI,ビジネス,自動作成,敬語,日本語,Gmail,メール作成,テンプレート,ビジネスメール",
         "subtitle": "AIがビジネスメールを自動作成"
       }

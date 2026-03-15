@@ -292,6 +292,9 @@ export default function SimpleCreateScreen() {
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
               {'メールの目的'}
             </ThemedText>
+            <View style={styles.requiredBadge}>
+              <ThemedText style={styles.requiredBadgeText}>{'必須'}</ThemedText>
+            </View>
           </View>
 
           {/* Category chips */}
@@ -491,9 +494,14 @@ export default function SimpleCreateScreen() {
             {'メールの書き方や署名について設定できます'}
           </ThemedText>
 
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'文頭に入れる文章'}
-          </ThemedText>
+          <View style={styles.fieldLabelRow}>
+            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text, marginBottom: 0 }]}>
+              {'文頭に入れる文章'}
+            </ThemedText>
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surfaceSecondary }]}>
+              <ThemedText style={[styles.optionalBadgeText, { color: colors.textSecondary }]}>{'任意'}</ThemedText>
+            </View>
+          </View>
           <TextInput
             style={[
               styles.textInput,
@@ -514,9 +522,14 @@ export default function SimpleCreateScreen() {
             maxLength={300}
           />
 
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text, marginTop: 12 }]}>
-            {'文体の指示'}
-          </ThemedText>
+          <View style={[styles.fieldLabelRow, { marginTop: 12 }]}>
+            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text, marginBottom: 0 }]}>
+              {'文体の指示'}
+            </ThemedText>
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surfaceSecondary }]}>
+              <ThemedText style={[styles.optionalBadgeText, { color: colors.textSecondary }]}>{'任意'}</ThemedText>
+            </View>
+          </View>
           <TextInput
             style={[
               styles.textInput,
@@ -537,9 +550,14 @@ export default function SimpleCreateScreen() {
             maxLength={500}
           />
 
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text, marginTop: 12 }]}>
-            {'署名'}
-          </ThemedText>
+          <View style={[styles.fieldLabelRow, { marginTop: 12 }]}>
+            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text, marginBottom: 0 }]}>
+              {'署名'}
+            </ThemedText>
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surfaceSecondary }]}>
+              <ThemedText style={[styles.optionalBadgeText, { color: colors.textSecondary }]}>{'任意'}</ThemedText>
+            </View>
+          </View>
           <TextInput
             style={[
               styles.textInput,
@@ -683,6 +701,32 @@ const styles = StyleSheet.create({
   fieldLabel: {
     marginBottom: 8,
     fontSize: 14,
+  },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  requiredBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: '#FF3B3018',
+  },
+  requiredBadgeText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: '#FF3B30',
+  },
+  optionalBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  optionalBadgeText: {
+    fontSize: 11,
+    fontWeight: '500' as const,
   },
   textInput: {
     borderWidth: 1,

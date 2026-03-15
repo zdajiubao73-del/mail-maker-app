@@ -26,12 +26,12 @@ type ActionCard = {
 };
 
 const TIPS = [
-  { icon: 'lightbulb.fill' as const, text: '「かんたん作成」なら目的を選ぶだけで30秒でメール完成' },
-  { icon: 'person.fill' as const, text: '連絡先に相手の関係性を登録すると敬語レベルを自動調整' },
-  { icon: 'clock.arrow.circlepath' as const, text: '履歴からワンタップで過去のメールを再利用できます' },
-  { icon: 'tray.full.fill' as const, text: 'よく使う設定はプリセットに保存して次回からワンタップで呼び出し' },
-  { icon: 'brain.head.profile' as const, text: '学習データ管理であなたの文体をAIが学習し、より自然なメールに' },
-  { icon: 'arrow.triangle.2.circlepath' as const, text: '生成結果がイメージと違っても再生成ボタンで何度でも作り直せます' },
+  { icon: 'lightbulb.fill' as const, text: '「かんたん作成」なら目的を選ぶだけで30秒でメール完成', route: '/create/simple' },
+  { icon: 'person.fill' as const, text: '連絡先に相手の関係性を登録すると敬語レベルを自動調整', route: '/(tabs)/contacts' },
+  { icon: 'clock.arrow.circlepath' as const, text: '履歴からワンタップで過去のメールを再利用できます', route: '/(tabs)/history' },
+  { icon: 'tray.full.fill' as const, text: 'よく使う設定はプリセットに保存して次回からワンタップで呼び出し', route: '/settings/presets' },
+  { icon: 'brain.head.profile' as const, text: '学習データ管理であなたの文体をAIが学習し、より自然なメールに', route: '/settings/learning-data' },
+  { icon: 'arrow.triangle.2.circlepath' as const, text: '生成結果がイメージと違っても再生成ボタンで何度でも作り直せます', route: '/create/simple' },
 ];
 
 export default function HomeScreen() {
@@ -303,12 +303,15 @@ export default function HomeScreen() {
 
         <View style={[styles.tipsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {TIPS.map((tip, index) => (
-            <View
+            <TouchableOpacity
               key={index}
               style={[
                 styles.tipRow,
                 index < TIPS.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
               ]}
+              activeOpacity={0.65}
+              onPress={() => router.push(tip.route as never)}
+              accessibilityRole="button"
             >
               <View style={[styles.tipIconContainer, { backgroundColor: colors.primaryMuted }]}>
                 <IconSymbol name={tip.icon} size={14} color={colors.tint} />
@@ -316,7 +319,8 @@ export default function HomeScreen() {
               <ThemedText style={[styles.tipText, { color: colors.textSecondary }]}>
                 {tip.text}
               </ThemedText>
-            </View>
+              <IconSymbol name="chevron.right" size={12} color={colors.icon} />
+            </TouchableOpacity>
           ))}
         </View>
       </ScrollView>

@@ -341,6 +341,26 @@ export default function DetailedCreateScreen() {
   const subcategories = selectedCategory ? SITUATIONS[selectedCategory] ?? [] : [];
 
   // Render helpers
+  function renderFieldLabel(label: string, variant?: 'required' | 'optional') {
+    return (
+      <View style={styles.fieldLabelRow}>
+        <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text, marginBottom: 0 }]}>
+          {label}
+        </ThemedText>
+        {variant === 'required' && (
+          <View style={styles.requiredBadge}>
+            <ThemedText style={styles.requiredBadgeText}>{'必須'}</ThemedText>
+          </View>
+        )}
+        {variant === 'optional' && (
+          <View style={[styles.optionalBadge, { backgroundColor: colors.surfaceSecondary }]}>
+            <ThemedText style={[styles.optionalBadgeText, { color: colors.textSecondary }]}>{'任意'}</ThemedText>
+          </View>
+        )}
+      </View>
+    );
+  }
+
   function renderChipGroup<T extends string>(
     items: T[],
     selected: T | null,
@@ -469,9 +489,7 @@ export default function DetailedCreateScreen() {
 
         {/* Recipient Name & Email */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'送信先'}
-          </ThemedText>
+          {renderFieldLabel('送信先', 'optional')}
           <TextInput
             style={[
               styles.textInput,
@@ -518,25 +536,19 @@ export default function DetailedCreateScreen() {
 
         {/* Relationship */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'関係性'}
-          </ThemedText>
+          {renderFieldLabel('関係性', 'required')}
           {renderChipGroup(RELATIONSHIPS, selectedRelationship, setSelectedRelationship)}
         </View>
 
         {/* Scope */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'社内/社外'}
-          </ThemedText>
+          {renderFieldLabel('社内/社外', 'required')}
           {renderChipGroup(SCOPES, selectedScope, setSelectedScope)}
         </View>
 
         {/* Position Level */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'役職レベル'}
-          </ThemedText>
+          {renderFieldLabel('役職レベル', 'required')}
           {renderChipGroup(POSITION_LEVELS, selectedPositionLevel, setSelectedPositionLevel)}
         </View>
       </View>
@@ -560,9 +572,7 @@ export default function DetailedCreateScreen() {
 
         {/* Category tabs */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'カテゴリ'}
-          </ThemedText>
+          {renderFieldLabel('カテゴリ', 'required')}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -601,9 +611,7 @@ export default function DetailedCreateScreen() {
         {/* Custom purpose input for その他 */}
         {selectedCategory === 'その他' && (
           <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-              {'メールの目的'}
-            </ThemedText>
+            {renderFieldLabel('メールの目的', 'required')}
             <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
               {'どんなメールを作成したいか自由に入力してください'}
             </ThemedText>
@@ -632,9 +640,7 @@ export default function DetailedCreateScreen() {
         {/* Subcategory */}
         {selectedCategory && selectedCategory !== 'その他' && subcategories.length > 0 && (
           <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-              {'サブカテゴリ'}
-            </ThemedText>
+            {renderFieldLabel('サブカテゴリ', 'required')}
             <View style={styles.chipGroup}>
               {subcategories.map((sub) => (
                 <TouchableOpacity
@@ -674,9 +680,7 @@ export default function DetailedCreateScreen() {
         {/* Situation */}
         {selectedSubcategory && selectedCategory !== 'その他' && (
           <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-              {'シチュエーション'}
-            </ThemedText>
+            {renderFieldLabel('シチュエーション', 'required')}
             <View style={styles.chipGroup}>
               {selectedSubcategory.situations.map((situation) => (
                 <TouchableOpacity
@@ -715,9 +719,7 @@ export default function DetailedCreateScreen() {
         {/* Custom situation input */}
         {selectedSituation === 'その他' && selectedCategory !== 'その他' && (
           <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-              {'シチュエーションの詳細'}
-            </ThemedText>
+            {renderFieldLabel('シチュエーションの詳細', 'required')}
             <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
               {'どのような内容のメールか具体的に入力してください'}
             </ThemedText>
@@ -759,33 +761,25 @@ export default function DetailedCreateScreen() {
 
         {/* Honorifics Level */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'敬語レベル'}
-          </ThemedText>
+          {renderFieldLabel('敬語レベル', 'optional')}
           {renderChipGroup(HONORIFICS_LEVELS, honorificsLevel, setHonorificsLevel)}
         </View>
 
         {/* Mail Length */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'文章の長さ'}
-          </ThemedText>
+          {renderFieldLabel('文章の長さ', 'optional')}
           {renderChipGroup(MAIL_LENGTHS, mailLength, setMailLength)}
         </View>
 
         {/* Atmosphere */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'雰囲気'}
-          </ThemedText>
+          {renderFieldLabel('雰囲気', 'optional')}
           {renderChipGroup(ATMOSPHERES, atmosphere, setAtmosphere)}
         </View>
 
         {/* Urgency */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'緊急度'}
-          </ThemedText>
+          {renderFieldLabel('緊急度', 'optional')}
           {renderChipGroup(URGENCIES, urgency, setUrgency)}
         </View>
 
@@ -819,9 +813,7 @@ export default function DetailedCreateScreen() {
 
         {/* Key Points */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'要点'}
-          </ThemedText>
+          {renderFieldLabel('要点', 'optional')}
           <TextInput
             style={[...inputStyle, styles.multilineInput]}
             placeholder="伝えたいポイントを入力..."
@@ -837,9 +829,7 @@ export default function DetailedCreateScreen() {
 
         {/* Date Time */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'メールに記載する日時'}
-          </ThemedText>
+          {renderFieldLabel('メールに記載する日時', 'optional')}
           <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
             {'会議・打ち合わせの候補日、締切、イベント日程など'}
           </ThemedText>
@@ -855,9 +845,7 @@ export default function DetailedCreateScreen() {
 
         {/* Proper Nouns */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'固有名詞'}
-          </ThemedText>
+          {renderFieldLabel('固有名詞', 'optional')}
           <TextInput
             style={inputStyle}
             placeholder="例: 〇〇株式会社、△△プロジェクト"
@@ -870,9 +858,7 @@ export default function DetailedCreateScreen() {
 
         {/* Notes */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'補足事項'}
-          </ThemedText>
+          {renderFieldLabel('補足事項', 'optional')}
           <TextInput
             style={[...inputStyle, styles.multilineInput]}
             placeholder="その他の補足情報..."
@@ -888,9 +874,7 @@ export default function DetailedCreateScreen() {
 
         {/* Opening Text */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'文頭に入れる文章'}
-          </ThemedText>
+          {renderFieldLabel('文頭に入れる文章', 'optional')}
           <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
             {'メール冒頭にそのまま挿入する文章を入力してください'}
           </ThemedText>
@@ -909,9 +893,7 @@ export default function DetailedCreateScreen() {
 
         {/* Writing Style Notes */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'文体の指示'}
-          </ThemedText>
+          {renderFieldLabel('文体の指示', 'optional')}
           <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
             {'文体について追加の指示があれば入力してください'}
           </ThemedText>
@@ -930,9 +912,7 @@ export default function DetailedCreateScreen() {
 
         {/* Signature */}
         <View style={styles.fieldGroup}>
-          <ThemedText type="defaultSemiBold" style={[styles.fieldLabel, { color: colors.text }]}>
-            {'署名'}
-          </ThemedText>
+          {renderFieldLabel('署名', 'optional')}
           <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
             {'メール末尾に追加する署名を入力してください'}
           </ThemedText>
@@ -1194,9 +1174,35 @@ const styles = StyleSheet.create({
   fieldGroup: {
     marginBottom: 22,
   },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
   fieldLabel: {
     marginBottom: 10,
     fontSize: 15,
+  },
+  requiredBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: '#FF3B3018',
+  },
+  requiredBadgeText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: '#FF3B30',
+  },
+  optionalBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  optionalBadgeText: {
+    fontSize: 11,
+    fontWeight: '500' as const,
   },
   fieldHint: {
     fontSize: 13,
