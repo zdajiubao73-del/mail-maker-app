@@ -5,8 +5,6 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getClientIp, checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { resolveToken } from "../_shared/token-resolver.ts";
 
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-
 const MAX_CC_RECIPIENTS = 10;
 const MAX_BCC_RECIPIENTS = 10;
 const MAX_TOTAL_RECIPIENTS = 20;
@@ -39,13 +37,14 @@ function getCorsHeaders(req: Request): Record<string, string> {
 // --- APIキー認証 ---
 
 function authenticateRequest(req: Request): boolean {
-  if (!SUPABASE_ANON_KEY) return true; // キー未設定時はスキップ（開発環境）
-
+  // Supabase gateway が API キーを検証済みのため、
+  // apikey または Authorization ヘッダーが存在することを確認する。
+  // 注: SUPABASE_ANON_KEY が新フォーマット (sb_publishable_*) に移行したため
+  // 旧フォーマット (JWT) との文字列比較は行わない。
   const apikey = req.headers.get('apikey');
   const authHeader = req.headers.get('Authorization');
-  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-  return apikey === SUPABASE_ANON_KEY || bearerToken === SUPABASE_ANON_KEY;
+  return !!(apikey || authHeader);
 }
 
 // --- メールアドレスバリデーション ---
@@ -328,11 +327,21 @@ Deno.serve(async (req: Request) => {
 
     if (!gmailRes.ok) {
       const statusCode = gmailRes.status;
+      const gmailErrorBody = await gmailRes.json().catch(() => ({})) as { error?: { message?: string; status?: string } };
+      const gmailErrorMessage = gmailErrorBody?.error?.message ?? '';
+      console.error(`Gmail API error: status=${statusCode}`, JSON.stringify(gmailErrorBody));
 
       if (statusCode === 401) {
         return new Response(
           JSON.stringify({ error: '認証が切れています。再認証してください。' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      if (statusCode === 403) {
+        return new Response(
+          JSON.stringify({ error: `Gmailの権限エラーです。アカウントを再連携してください。(${gmailErrorMessage})` }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -343,9 +352,8 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      console.error(`Gmail API error: status=${statusCode}`);
       return new Response(
-        JSON.stringify({ error: 'メールの送信に失敗しました。' }),
+        JSON.stringify({ error: `メールの送信に失敗しました。(HTTP ${statusCode}: ${gmailErrorMessage})` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }

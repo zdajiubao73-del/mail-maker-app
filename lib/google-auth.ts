@@ -35,6 +35,7 @@ const LOGIN_SCOPES = [
 // 連絡先インポート用スコープ（People API 読み取り専用）
 const CONTACTS_SCOPES = [
   'https://www.googleapis.com/auth/contacts.readonly',
+  'https://www.googleapis.com/auth/contacts.other.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
 ];
 

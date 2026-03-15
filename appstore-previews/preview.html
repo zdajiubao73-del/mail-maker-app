@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App Store Preview Images - メールメーカー</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 60px;
+    padding: 40px;
+  }
+
+  h1.page-title {
+    color: #fff;
+    font-size: 28px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  p.page-desc {
+    color: #94A3B8;
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .slide-label {
+    color: #94A3B8;
+    font-size: 14px;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  /* ============================================
+     Each slide: 1290 x 2796 px (iPhone 6.7")
+     Scaled down for display: /3
+     ============================================ */
+  .slide-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .slide {
+    width: 1290px;
+    height: 2796px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 40px;
+    transform: scale(0.3);
+    transform-origin: top center;
+    margin-bottom: -1820px; /* compensate for scale */
+  }
+
+  /* ---- Gradient Backgrounds ---- */
+  .bg-1 {
+    background: linear-gradient(170deg, #1e1b4b 0%, #312e81 25%, #4338ca 50%, #6366f1 80%, #818cf8 100%);
+  }
+  .bg-2 {
+    background: linear-gradient(170deg, #1e1b4b 0%, #3b0764 30%, #7c3aed 60%, #8b5cf6 85%, #a78bfa 100%);
+  }
+  .bg-3 {
+    background: linear-gradient(170deg, #0c1222 0%, #1e293b 25%, #334155 55%, #475569 85%, #64748b 100%);
+  }
+  .bg-4 {
+    background: linear-gradient(170deg, #451a03 0%, #78350f 25%, #b45309 50%, #f59e0b 80%, #fbbf24 100%);
+  }
+  .bg-5 {
+    background: linear-gradient(170deg, #042f2e 0%, #065f46 25%, #059669 50%, #10b981 80%, #34d399 100%);
+  }
+
+  /* ---- Text Content Area ---- */
+  .slide-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    padding: 120px 80px 0;
+    text-align: center;
+  }
+
+  .app-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 50px;
+    font-size: 50px;
+  }
+
+  .slide-headline {
+    font-size: 120px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.25;
+    letter-spacing: -2px;
+    margin-bottom: 40px;
+    text-shadow: 0 4px 30px rgba(0,0,0,0.3);
+  }
+
+  .slide-subheadline {
+    font-size: 56px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.5;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.2);
+  }
+
+  /* ---- Phone Mockup ---- */
+  .phone-mockup {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 820px;
+    z-index: 3;
+  }
+
+  .phone-frame {
+    position: relative;
+    background: #000000;
+    border-radius: 90px;
+    padding: 22px;
+    box-shadow:
+      0 0 0 4px #2a2a2a,
+      0 50px 100px rgba(0,0,0,0.5),
+      0 20px 60px rgba(0,0,0,0.3),
+      inset 0 0 0 2px #3a3a3a;
+  }
+
+  .phone-screen {
+    border-radius: 70px;
+    overflow: hidden;
+    position: relative;
+    background: #F8FAFC;
+    aspect-ratio: 1290 / 2796;
+  }
+
+  .phone-screen img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Dynamic Island */
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 55px;
+    background: #000;
+    border-radius: 30px;
+    z-index: 10;
+  }
+
+  /* ---- Side buttons (volume, power) ---- */
+  .phone-frame::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    top: 320px;
+    width: 8px;
+    height: 130px;
+    background: #2a2a2a;
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* ---- Badge / Pill ---- */
+  .feature-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 40px;
+    font-weight: 700;
+    padding: 16px 40px;
+    border-radius: 60px;
+    margin-bottom: 50px;
+    border: 2px solid rgba(255,255,255,0.15);
+  }
+
+  /* ---- Decorative Elements ---- */
+  .deco-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    z-index: 1;
+  }
+
+  .deco-1 {
+    width: 600px;
+    height: 600px;
+    top: -100px;
+    right: -200px;
+  }
+  .deco-2 {
+    width: 400px;
+    height: 400px;
+    bottom: 800px;
+    left: -150px;
+  }
+  .deco-3 {
+    width: 300px;
+    height: 300px;
+    top: 200px;
+    left: -100px;
+  }
+
+  /* ---- Two-phone layout ---- */
+  .phone-mockup-dual {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1100px;
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+    z-index: 3;
+  }
+
+  .phone-mockup-dual .phone-frame {
+    width: 560px;
+    flex-shrink: 0;
+  }
+
+  .phone-mockup-dual .phone-left {
+    transform: translateY(100px);
+  }
+
+  .phone-mockup-dual .phone-right {
+    transform: translateY(250px);
+  }
+
+  /* ---- Angled phone ---- */
+  .phone-mockup-angled {
+    position: absolute;
+    bottom: -80px;
+    left: 50%;
+    transform: translateX(-45%) perspective(2000px) rotateY(-5deg) rotateX(2deg);
+    width: 860px;
+    z-index: 3;
+  }
+
+  /* ---- Instructions ---- */
+  .instructions {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 600px;
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.8;
+    margin-bottom: 20px;
+  }
+  .instructions h2 {
+    color: #f1f5f9;
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+  .instructions code {
+    background: #334155;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #a78bfa;
+  }
+  .instructions ol {
+    padding-left: 20px;
+  }
+  .instructions li {
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">App Store Preview Images</h1>
+<p class="page-desc">iPhone 6.7" (1290 x 2796px) - 各画像を右クリック → 「画像として保存」またはスクリーンショット</p>
+
+<div class="instructions">
+  <h2>使い方</h2>
+  <ol>
+    <li>このHTMLをブラウザで開いてください</li>
+    <li>各スライドは実寸の30%で表示されています</li>
+    <li>実寸で書き出すには: ブラウザの開発者ツール → <code>.slide</code> 要素を選択 → <code>transform: scale(1)</code> に変更 → スクリーンショット</li>
+    <li>または、Puppeteer/Playwright等でプログラム的にキャプチャできます</li>
+    <li>スクリーンショット画像は <code>screenshots/</code> フォルダに配置してパスを更新してください</li>
+  </ol>
+</div>
+
+<!-- =============================================
+     SLIDE 1: Hero - AIがメールを自動作成
+     ============================================= -->
+<div class="slide-wrapper">
+  <div class="slide-label">Slide 1 / 5 — ヒーロー（メイン訴求）</div>
+  <div class="slide bg-1" id="slide1">
+    <!-- Decorative -->
+    <div class="deco-circle deco-1"></div>
+    <div class="deco-circle deco-2"></div>
+
+    <!-- Text -->
+    <div class="slide-content">
+      <div class="feature-badge">✉️ AIメール作成</div>
+      <div class="slide-headline">
+        AIが敬語メールを<br>自動作成
+      </div>
+      <div class="slide-subheadline">
+        相手との関係性に合わせた<br>完璧な日本語メールを瞬時に生成
+      </div>
+    </div>
+
+    <!-- Phone -->
+    <div class="phone-mockup">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <img src="/Users/okubotomoya/Downloads/IMG_4998_1284x2778.PNG" alt="ホーム画面">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     SLIDE 2: かんたん作成 - 最短30秒
+     ============================================= -->
+<div class="slide-wrapper">
+  <div class="slide-label">Slide 2 / 5 — かんたん作成</div>
+  <div class="slide bg-2" id="slide2">
+    <!-- Decorative -->
+    <div class="deco-circle deco-1"></div>
+    <div class="deco-circle deco-3"></div>
+
+    <!-- Text -->
+    <div class="slide-content">
+      <div class="feature-badge">⚡ 最短30秒</div>
+      <div class="slide-headline">
+        目的を選ぶだけで<br>メール完成
+      </div>
+      <div class="slide-subheadline">
+        かんたん・こだわり・テンプレートの<br>3つのモードから選べる
+      </div>
+    </div>
+
+    <!-- Phone -->
+    <div class="phone-mockup">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <!-- TODO: かんたん作成画面のスクリーンショットに差し替え -->
+          <img src="/Users/okubotomoya/Downloads/IMG_4998_1284x2778.PNG" alt="かんたん作成">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     SLIDE 3: 履歴管理
+     ============================================= -->
+<div class="slide-wrapper">
+  <div class="slide-label">Slide 3 / 5 — 履歴管理</div>
+  <div class="slide bg-3" id="slide3">
+    <!-- Decorative -->
+    <div class="deco-circle deco-2"></div>
+    <div class="deco-circle deco-1"></div>
+
+    <!-- Text -->
+    <div class="slide-content">
+      <div class="feature-badge">📋 履歴管理</div>
+      <div class="slide-headline">
+        作成したメールを<br>いつでも確認
+      </div>
+      <div class="slide-subheadline">
+        過去のメールをワンタップで<br>再利用・編集・共有
+      </div>
+    </div>
+
+    <!-- Phone -->
+    <div class="phone-mockup">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <img src="/Users/okubotomoya/Downloads/IMG_4999_1284x2778.PNG" alt="履歴画面">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     SLIDE 4: テンプレート
+     ============================================= -->
+<div class="slide-wrapper">
+  <div class="slide-label">Slide 4 / 5 — テンプレート</div>
+  <div class="slide bg-4" id="slide4">
+    <!-- Decorative -->
+    <div class="deco-circle deco-3"></div>
+    <div class="deco-circle deco-1"></div>
+
+    <!-- Text -->
+    <div class="slide-content">
+      <div class="feature-badge">📝 テンプレート</div>
+      <div class="slide-headline">
+        豊富なテンプレートで<br>すぐに使える
+      </div>
+      <div class="slide-subheadline">
+        ビジネス・就活・お詫び・お礼など<br>あらゆるシーンに対応
+      </div>
+    </div>
+
+    <!-- Phone -->
+    <div class="phone-mockup">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <!-- TODO: テンプレート一覧画面のスクリーンショットに差し替え -->
+          <img src="/Users/okubotomoya/Downloads/IMG_4998_1284x2778.PNG" alt="テンプレート一覧">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     SLIDE 5: Gmail連携
+     ============================================= -->
+<div class="slide-wrapper">
+  <div class="slide-label">Slide 5 / 5 — Gmail連携送信</div>
+  <div class="slide bg-5" id="slide5">
+    <!-- Decorative -->
+    <div class="deco-circle deco-1"></div>
+    <div class="deco-circle deco-2"></div>
+
+    <!-- Text -->
+    <div class="slide-content">
+      <div class="feature-badge">📧 メール連携</div>
+      <div class="slide-headline">
+        Gmail連携で<br>そのまま送信
+      </div>
+      <div class="slide-subheadline">
+        OAuth認証で安全に連携<br>アプリから直接メールを送信
+      </div>
+    </div>
+
+    <!-- Phone -->
+    <div class="phone-mockup">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <img src="/Users/okubotomoya/Downloads/IMG_5002_1284x2778.PNG" alt="設定画面">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

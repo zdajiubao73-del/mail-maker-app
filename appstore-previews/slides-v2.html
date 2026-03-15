@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>App Store Slides v2 - メールメーカー (Device Frame)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { background: #000; }
+  body { margin: 0; padding: 0; background: #000; font-family: 'Noto Sans JP', -apple-system, sans-serif; }
+
+  .slide {
+    width: 1284px; height: 2778px;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center;
+  }
+
+  /* ========== BACKGROUNDS ========== */
+  .bg-1 { background: linear-gradient(170deg, #0c0c24 0%, #10102e 40%, #0e0e22 100%); }
+  .bg-2 { background: linear-gradient(170deg, #080e1e 0%, #0c1830 40%, #080e1e 100%); }
+  .bg-3 { background: linear-gradient(170deg, #0c0820 0%, #16103a 40%, #0c0820 100%); }
+  .bg-4 { background: linear-gradient(170deg, #0e0810 0%, #1a0e1e 40%, #0e0810 100%); }
+  .bg-5 { background: linear-gradient(170deg, #06100e 0%, #0a1c18 40%, #06100e 100%); }
+
+  /* Subtle background orbs */
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(140px);
+    z-index: 1; pointer-events: none;
+  }
+
+  /* ========== TEXT AREA ========== */
+  .text-area {
+    padding-top: 130px;
+    text-align: center;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.7); font-size: 30px; font-weight: 700;
+    padding: 14px 36px; border-radius: 50px; margin-bottom: 32px;
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+  }
+  .badge-icon { font-size: 32px; line-height: 1; }
+
+  .headline {
+    font-size: 88px; font-weight: 900; color: #fff;
+    line-height: 1.32; letter-spacing: -2px; margin-bottom: 20px;
+    text-shadow: 0 2px 40px rgba(0,0,0,0.3);
+  }
+
+  .subheadline {
+    font-size: 36px; font-weight: 500;
+    color: rgba(255,255,255,0.45); line-height: 1.6;
+  }
+
+  /* Gradient text */
+  .g-purple {
+    background: linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #f472b6 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .g-blue {
+    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .g-orange {
+    background: linear-gradient(135deg, #fb923c 0%, #f472b6 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .g-pink {
+    background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .g-green {
+    background: linear-gradient(135deg, #34d399 0%, #2dd4bf 60%, #38bdf8 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  /* ========== DEVICE FRAME ========== */
+  .device-wrap {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 44px;
+    z-index: 10;
+    overflow: hidden;
+  }
+
+  .device-frame {
+    position: relative;
+    width: 880px;
+    border-radius: 64px;
+    background: #1c1c1e;
+    padding: 12px;
+    box-shadow:
+      0 0 0 1.5px rgba(255,255,255,0.08),
+      0 40px 100px rgba(0,0,0,0.6),
+      0 0 80px var(--glow-color, rgba(99,102,241,0.08));
+  }
+
+  .device-screen {
+    width: 100%;
+    border-radius: 52px;
+    overflow: hidden;
+    position: relative;
+    background: #000;
+  }
+
+  .device-screen img {
+    width: 100%;
+    display: block;
+  }
+
+  /* Dynamic Island */
+  .dynamic-island {
+    position: absolute;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140px;
+    height: 40px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 20;
+  }
+
+  /* Bottom fade (screenshot fades into slide bottom) */
+  .device-fade {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 200px;
+    background: linear-gradient(to bottom, transparent, var(--fade-color, #0c0c24));
+    z-index: 5;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- =============================================================
+     SLIDE 1: ホーム画面 — もう敬語メールで悩まない
+     ============================================================= -->
+<div class="slide bg-1" id="slide1">
+  <div class="orb" style="width:800px;height:800px;background:rgba(99,102,241,0.12);top:-200px;right:-200px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(192,132,252,0.08);bottom:400px;left:-200px;"></div>
+
+  <div class="text-area">
+    <div class="badge"><span class="badge-icon">✨</span>AIメール作成</div>
+    <div class="headline">もう<span class="g-purple">敬語メール</span>で<br>悩まない</div>
+    <div class="subheadline">送信相手を選ぶだけで<br>AIが敬語・トーンを自動最適化</div>
+  </div>
+
+  <div class="device-wrap">
+    <div class="device-frame" style="--glow-color:rgba(99,102,241,0.1);">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <img src="screenshots/01_home.png" alt="ホーム画面">
+      </div>
+    </div>
+  </div>
+
+  <div class="device-fade" style="--fade-color:#0c0c24;"></div>
+</div>
+
+<!-- =============================================================
+     SLIDE 2: かんたん作成 — 目的を選ぶだけ
+     ============================================================= -->
+<div class="slide bg-2" id="slide2">
+  <div class="orb" style="width:800px;height:800px;background:rgba(56,189,248,0.12);top:-200px;left:-200px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(99,102,241,0.08);bottom:400px;right:-200px;"></div>
+
+  <div class="text-area">
+    <div class="badge"><span class="badge-icon">⚡</span>かんたんモード</div>
+    <div class="headline">目的を選ぶだけ<br><span class="g-blue">最短30秒</span>で完成</div>
+    <div class="subheadline">トーンも敬語レベルも<br>AIが自動で最適化</div>
+  </div>
+
+  <div class="device-wrap">
+    <div class="device-frame" style="--glow-color:rgba(56,189,248,0.1);">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <img src="screenshots/02_simple.png" alt="かんたん作成画面">
+      </div>
+    </div>
+  </div>
+
+  <div class="device-fade" style="--fade-color:#080e1e;"></div>
+</div>
+
+<!-- =============================================================
+     SLIDE 3: メールプレビュー — 納得いくまで再生成
+     ============================================================= -->
+<div class="slide bg-3" id="slide3">
+  <div class="orb" style="width:800px;height:800px;background:rgba(167,139,250,0.12);top:-200px;right:-100px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(244,114,182,0.08);bottom:400px;left:-200px;"></div>
+
+  <div class="text-area">
+    <div class="badge"><span class="badge-icon">📧</span>Gmail連携</div>
+    <div class="headline">作成から<span class="g-pink">送信</span>まで<br>アプリで完結</div>
+    <div class="subheadline">Gmail連携・サブスクリプション<br>プライバシー管理も充実</div>
+  </div>
+
+  <div class="device-wrap">
+    <div class="device-frame" style="--glow-color:rgba(167,139,250,0.1);">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <img src="screenshots/03_preview.png" alt="設定画面">
+      </div>
+    </div>
+  </div>
+
+  <div class="device-fade" style="--fade-color:#0c0820;"></div>
+</div>
+
+<!-- =============================================================
+     SLIDE 4: テンプレート一覧 — テンプレートですぐ使える
+     ============================================================= -->
+<div class="slide bg-4" id="slide4">
+  <div class="orb" style="width:800px;height:800px;background:rgba(251,146,60,0.1);top:-200px;right:-100px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(244,114,182,0.08);bottom:400px;left:-200px;"></div>
+
+  <div class="text-area">
+    <div class="badge"><span class="badge-icon">📋</span>テンプレート</div>
+    <div class="headline"><span class="g-orange">テンプレート</span>で<br>すぐ使える</div>
+    <div class="subheadline">シーン別テンプレートから選んで<br>すぐにメールを作成</div>
+  </div>
+
+  <div class="device-wrap">
+    <div class="device-frame" style="--glow-color:rgba(251,146,60,0.1);">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <img src="screenshots/04_templates.png" alt="テンプレート一覧画面">
+      </div>
+    </div>
+  </div>
+
+  <div class="device-fade" style="--fade-color:#0e0810;"></div>
+</div>
+
+<!-- =============================================================
+     SLIDE 5: こだわり作成 — 細かくカスタマイズ
+     ============================================================= -->
+<div class="slide bg-5" id="slide5">
+  <div class="orb" style="width:800px;height:800px;background:rgba(52,211,153,0.1);top:-200px;left:-100px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(45,212,191,0.08);bottom:400px;right:-200px;"></div>
+
+  <div class="text-area">
+    <div class="badge"><span class="badge-icon">🎯</span>こだわり作成</div>
+    <div class="headline">細かく<span class="g-green">カスタマイズ</span><br>して完璧なメールに</div>
+    <div class="subheadline">敬語レベル・トーン・文体を<br>自由に指定</div>
+  </div>
+
+  <div class="device-wrap">
+    <div class="device-frame" style="--glow-color:rgba(52,211,153,0.1);">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <img src="screenshots/05_detailed.png" alt="こだわり作成画面">
+      </div>
+    </div>
+  </div>
+
+  <div class="device-fade" style="--fade-color:#06100e;"></div>
+</div>
+
+</body>
+</html>

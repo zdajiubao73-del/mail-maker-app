@@ -33,11 +33,14 @@ function getCorsHeaders(req: Request): Record<string, string> {
 }
 
 function authenticateRequest(req: Request): boolean {
-  if (!SUPABASE_ANON_KEY) return true;
+  // Supabase gateway が API キーを検証済みのため、
+  // apikey または Authorization ヘッダーが存在することを確認する。
+  // 注: SUPABASE_ANON_KEY が新フォーマット (sb_publishable_*) に移行したため
+  // 旧フォーマット (JWT) との文字列比較は行わない。
   const apikey = req.headers.get("apikey");
   const authHeader = req.headers.get("Authorization");
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  return apikey === SUPABASE_ANON_KEY || bearerToken === SUPABASE_ANON_KEY;
+
+  return !!(apikey || authHeader);
 }
 
 function getServiceClient() {

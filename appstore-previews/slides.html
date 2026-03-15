@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>App Store Slides - メールメーカー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { background: #000; }
+  body { margin: 0; padding: 0; background: #000; font-family: 'Noto Sans JP', -apple-system, sans-serif; }
+
+  .slide { width: 1284px; height: 2778px; position: relative; overflow: hidden; }
+
+  /* ========== BACKGROUNDS ========== */
+  .bg-1 { background: #06060F; }
+  .bg-2 { background: #060A14; }
+  .bg-3 { background: #0F0806; }
+  .bg-4 { background: #0A0612; }
+  .bg-5 { background: #040D0A; }
+
+  /* Noise texture overlay */
+  .noise {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2; pointer-events: none; opacity: 0.35;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    background-size: 256px;
+  }
+
+  /* Vignette effect */
+  .vignette {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%);
+  }
+
+  /* Gradient mesh orbs */
+  .orb { position: absolute; border-radius: 50%; filter: blur(140px); z-index: 1; pointer-events: none; }
+  .orb-bright { position: absolute; border-radius: 50%; filter: blur(40px); z-index: 1; pointer-events: none; }
+
+  /* Dot grid */
+  .grid {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; opacity: 0.04; pointer-events: none;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  /* Floating particles */
+  .particle {
+    position: absolute; border-radius: 50%; z-index: 3; pointer-events: none;
+  }
+  .particle-sm { width: 4px; height: 4px; background: rgba(255,255,255,0.15); }
+  .particle-md { width: 6px; height: 6px; background: rgba(255,255,255,0.1); }
+  .particle-lg { width: 8px; height: 8px; background: rgba(255,255,255,0.08); }
+  .particle-glow { box-shadow: 0 0 20px 5px currentColor; width: 6px; height: 6px; }
+  .particle-line { width: 20px; height: 2px; border-radius: 1px; background: rgba(255,255,255,0.08); position: absolute; z-index: 3; pointer-events: none; border-radius: 0; }
+  .particle-diamond { width: 8px; height: 8px; background: rgba(255,255,255,0.1); transform: rotate(45deg); border-radius: 1px; position: absolute; z-index: 3; pointer-events: none; }
+
+  /* ========== ILLUSTRATION CONTAINER ========== */
+  .illust-area {
+    position: absolute; left: 0; right: 0; z-index: 5; display: flex; justify-content: center; align-items: center;
+  }
+
+  /* ========== TYPOGRAPHY ========== */
+  .content { position: relative; z-index: 10; padding: 150px 90px 0; text-align: center; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 14px;
+    background: rgba(25,23,50,0.7);
+    color: rgba(255,255,255,0.8); font-size: 32px; font-weight: 700;
+    padding: 16px 40px; border-radius: 60px; margin-bottom: 50px;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+    backdrop-filter: blur(12px);
+  }
+  .badge-icon { font-size: 38px; line-height: 1; }
+
+  .headline {
+    font-size: 120px; font-weight: 900; color: #fff;
+    line-height: 1.28; letter-spacing: -3px; margin-bottom: 44px;
+    text-shadow: 0 4px 60px rgba(0,0,0,0.5);
+  }
+  .g-purple { background: linear-gradient(135deg, #a78bfa 0%, #c084fc 40%, #f472b6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(167,139,250,0.4)); }
+  .g-blue { background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(56,189,248,0.4)); }
+  .g-green { background: linear-gradient(135deg, #34d399 0%, #2dd4bf 50%, #38bdf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(52,211,153,0.4)); }
+  .g-orange { background: linear-gradient(135deg, #fb923c 0%, #f472b6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(251,146,60,0.4)); }
+  .g-pink { background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px rgba(192,132,252,0.4)); }
+
+  .subheadline { font-size: 48px; font-weight: 600; color: rgba(255,255,255,0.6); line-height: 1.65; }
+
+  /* ========== CARDS AREA ========== */
+  .cards-area {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 10; padding: 0 70px 130px;
+    background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 8%, rgba(0,0,0,0.85) 20%, rgba(0,0,0,0.92) 100%);
+    padding-top: 90px;
+  }
+
+  .card-glass {
+    background: rgba(30,28,60,0.65);
+    backdrop-filter: blur(24px);
+    border-radius: 32px; padding: 40px 44px; margin-bottom: 18px;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .card-glass-accent {
+    border: 1px solid rgba(99,102,241,0.35);
+    background: rgba(40,30,80,0.65);
+    backdrop-filter: blur(24px);
+    box-shadow: 0 8px 40px rgba(99,102,241,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  .card-row { display: flex; align-items: center; gap: 28px; }
+  .card-icon {
+    width: 80px; height: 80px; border-radius: 22px;
+    display: flex; align-items: center; justify-content: center; font-size: 38px; flex-shrink: 0;
+  }
+  .card-text { flex: 1; }
+  .card-title { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+  .card-desc { font-size: 24px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+
+  /* Step flow */
+  .step-row { display: flex; align-items: center; gap: 24px; }
+  .step-num {
+    width: 68px; height: 68px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 32px; font-weight: 900; color: #fff; flex-shrink: 0;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+  .step-line { width: 3px; height: 32px; margin: 0 0 0 80px; border-radius: 3px; }
+
+  /* Pills */
+  .pill-wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(25,23,50,0.8);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 50px;
+    padding: 12px 26px; color: rgba(255,255,255,0.55); font-size: 24px; font-weight: 600;
+  }
+
+  /* Stats */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: linear-gradient(135deg, rgba(25,23,50,0.85) 0%, rgba(18,16,40,0.8) 100%);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 28px; padding: 32px; text-align: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .stat-val { font-size: 38px; font-weight: 900; margin-bottom: 6px; }
+  .stat-label { font-size: 22px; color: rgba(255,255,255,0.5); font-weight: 600; }
+
+  /* Mail cards */
+  .mail-card { border-radius: 28px; padding: 36px 40px; margin-bottom: 16px; }
+  .mail-badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 16px; border-radius: 12px; font-size: 19px; font-weight: 700; margin-bottom: 14px;
+  }
+  .mail-subject { font-size: 30px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+  .mail-body { font-size: 22px; color: rgba(255,255,255,0.5); line-height: 1.7; }
+
+  /* Template items */
+  .tpl-item {
+    background: linear-gradient(135deg, rgba(28,24,55,0.85) 0%, rgba(18,16,40,0.8) 100%);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 24px; padding: 30px 36px; margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .tpl-title { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 5px; }
+  .tpl-desc { font-size: 20px; color: rgba(255,255,255,0.35); }
+  .tpl-badge { padding: 7px 16px; border-radius: 12px; font-size: 18px; font-weight: 700; flex-shrink: 0; margin-left: 20px; }
+</style>
+</head>
+<body>
+
+<!-- =============================================================
+     SLIDE 1: もう敬語メールで悩まない (Hero)
+     ============================================================= -->
+<div class="slide bg-1" id="slide1">
+  <div class="grid"></div>
+  <div class="noise"></div>
+  <div class="vignette"></div>
+  <div class="orb" style="width:900px;height:900px;background:rgba(99,102,241,0.25);top:-300px;right:-200px;"></div>
+  <div class="orb" style="width:700px;height:700px;background:rgba(192,132,252,0.18);top:400px;left:-300px;"></div>
+  <div class="orb" style="width:500px;height:500px;background:rgba(244,114,182,0.12);bottom:300px;right:100px;"></div>
+  <div class="orb" style="width:400px;height:400px;background:rgba(99,102,241,0.1);bottom:800px;left:200px;"></div>
+  <div class="orb-bright" style="width:120px;height:120px;background:rgba(167,139,250,0.5);top:600px;right:200px;"></div>
+  <div class="orb-bright" style="width:80px;height:80px;background:rgba(244,114,182,0.4);top:350px;left:400px;"></div>
+  <div class="orb-bright" style="width:100px;height:100px;background:rgba(99,102,241,0.45);bottom:600px;left:150px;"></div>
+
+  <!-- Particles -->
+  <div class="particle particle-sm" style="top:300px;left:120px;"></div>
+  <div class="particle particle-md" style="top:500px;right:150px;"></div>
+  <div class="particle particle-sm" style="top:900px;left:400px;"></div>
+  <div class="particle particle-lg" style="top:700px;right:300px;"></div>
+  <div class="particle particle-sm" style="bottom:800px;left:200px;"></div>
+  <div class="particle particle-glow" style="top:450px;left:950px;color:rgba(167,139,250,0.4);"></div>
+  <div class="particle particle-glow" style="top:650px;left:180px;color:rgba(244,114,182,0.3);"></div>
+  <div class="particle particle-sm" style="top:200px;right:300px;"></div>
+  <div class="particle particle-md" style="top:1100px;left:250px;"></div>
+  <div class="particle particle-glow" style="top:800px;right:180px;color:rgba(99,102,241,0.35);"></div>
+  <div class="particle-line" style="top:400px;left:300px;transform:rotate(25deg);"></div>
+  <div class="particle-line" style="top:750px;right:250px;transform:rotate(-15deg);"></div>
+  <div class="particle-diamond" style="top:550px;left:800px;"></div>
+  <div class="particle-diamond" style="top:350px;right:400px;"></div>
+  <div class="particle particle-sm" style="top:1000px;right:400px;"></div>
+
+  <!-- Envelope Illustration -->
+  <div class="illust-area" style="top:800px;height:720px;">
+    <svg width="900" height="720" viewBox="0 0 700 560" fill="none">
+      <!-- Radial glow behind -->
+      <circle cx="350" cy="280" r="250" fill="url(#s1radialGlow)" opacity="0.3"/>
+      <!-- Radiation lines -->
+      <line x1="350" y1="280" x2="350" y2="20" stroke="url(#s1ray)" stroke-width="1.5" opacity="0.1"/>
+      <line x1="350" y1="280" x2="620" y2="60" stroke="url(#s1ray)" stroke-width="1.5" opacity="0.08"/>
+      <line x1="350" y1="280" x2="80" y2="60" stroke="url(#s1ray)" stroke-width="1.5" opacity="0.08"/>
+      <line x1="350" y1="280" x2="680" y2="280" stroke="url(#s1ray)" stroke-width="1.5" opacity="0.06"/>
+      <line x1="350" y1="280" x2="20" y2="280" stroke="url(#s1ray)" stroke-width="1.5" opacity="0.06"/>
+      <line x1="350" y1="280" x2="350" y2="540" stroke="url(#s1ray)" stroke-width="1.5" opacity="0.04"/>
+      <!-- Shadow -->
+      <ellipse cx="350" cy="520" rx="260" ry="30" fill="url(#s1shadow)" opacity="0.3"/>
+      <!-- Envelope back -->
+      <rect x="100" y="160" width="500" height="340" rx="28" fill="url(#s1envBack)"/>
+      <!-- Letter coming out -->
+      <g filter="url(#s1letterGlow)">
+        <rect x="150" y="80" width="400" height="300" rx="20" fill="url(#s1letter)"/>
+        <rect x="150" y="80" width="400" height="300" rx="20" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+      </g>
+      <!-- Letter lines -->
+      <rect x="200" y="140" width="200" height="10" rx="5" fill="rgba(255,255,255,0.15)"/>
+      <rect x="200" y="170" width="300" height="8" rx="4" fill="rgba(255,255,255,0.08)"/>
+      <rect x="200" y="195" width="280" height="8" rx="4" fill="rgba(255,255,255,0.08)"/>
+      <rect x="200" y="220" width="260" height="8" rx="4" fill="rgba(255,255,255,0.08)"/>
+      <rect x="200" y="245" width="300" height="8" rx="4" fill="rgba(255,255,255,0.08)"/>
+      <rect x="200" y="270" width="180" height="8" rx="4" fill="rgba(255,255,255,0.08)"/>
+      <!-- AI sparkle badge on letter -->
+      <rect x="380" y="120" width="130" height="42" rx="21" fill="url(#s1aiBadge)"/>
+      <text x="415" y="148" fill="white" font-size="20" font-weight="700" font-family="'Noto Sans JP',sans-serif">&#x2728; AI生成</text>
+      <!-- Envelope front flap -->
+      <path d="M100 160 L350 340 L600 160" fill="url(#s1flap)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+      <!-- Sparkles around -->
+      <g opacity="0.8">
+        <circle cx="80" cy="200" r="4" fill="#a78bfa"/>
+        <circle cx="620" cy="240" r="3" fill="#f472b6"/>
+        <circle cx="160" cy="100" r="3" fill="#818cf8"/>
+        <circle cx="540" cy="90" r="4" fill="#c084fc"/>
+        <circle cx="650" cy="350" r="3" fill="#a78bfa"/>
+        <path d="M100 120 l4-12 4 12 12-4-12 4 4 12-4-12-12 4z" fill="#c084fc" opacity="0.7"/>
+        <path d="M600 140 l3-9 3 9 9-3-9 3 3 9-3-9-9 3z" fill="#818cf8" opacity="0.6"/>
+        <path d="M350 50 l5-15 5 15 15-5-15 5 5 15-5-15-15 5z" fill="#f472b6" opacity="0.5"/>
+      </g>
+      <defs>
+        <radialGradient id="s1radialGlow" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stop-color="rgba(99,102,241,0.5)"/>
+          <stop offset="100%" stop-color="transparent"/>
+        </radialGradient>
+        <linearGradient id="s1ray"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="transparent"/></linearGradient>
+        <linearGradient id="s1envBack" x1="100" y1="160" x2="600" y2="500">
+          <stop offset="0%" stop-color="#2e1a6b"/>
+          <stop offset="100%" stop-color="#1a1040"/>
+        </linearGradient>
+        <linearGradient id="s1letter" x1="150" y1="80" x2="550" y2="380">
+          <stop offset="0%" stop-color="#1e1650"/>
+          <stop offset="100%" stop-color="#140e35"/>
+        </linearGradient>
+        <linearGradient id="s1flap" x1="100" y1="160" x2="350" y2="340">
+          <stop offset="0%" stop-color="#3b2a8a"/>
+          <stop offset="100%" stop-color="#251872"/>
+        </linearGradient>
+        <linearGradient id="s1aiBadge" x1="380" y1="120" x2="510" y2="162">
+          <stop offset="0%" stop-color="#6366f1"/>
+          <stop offset="100%" stop-color="#a78bfa"/>
+        </linearGradient>
+        <radialGradient id="s1shadow" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stop-color="rgba(99,102,241,0.3)"/>
+          <stop offset="100%" stop-color="transparent"/>
+        </radialGradient>
+        <filter id="s1letterGlow">
+          <feDropShadow dx="0" dy="8" stdDeviation="20" flood-color="rgba(99,102,241,0.3)"/>
+        </filter>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="content">
+    <div class="badge" style="border-color:rgba(167,139,250,0.4);box-shadow:0 4px 30px rgba(0,0,0,0.3),0 0 20px rgba(167,139,250,0.15);"><span class="badge-icon">🎓</span>新大学生・新社会人の味方</div>
+    <div class="headline">もう<span class="g-purple">敬語メール</span>で<br>悩まない</div>
+    <div class="subheadline">送信相手を選ぶだけで<br>AIが敬語・トーンを自動最適化</div>
+  </div>
+
+  <div class="cards-area" style="background:linear-gradient(to bottom, transparent 0%, rgba(99,102,241,0.06) 5%, rgba(0,0,0,0.6) 12%, rgba(0,0,0,0.85) 22%, rgba(0,0,0,0.92) 100%);">
+    <div class="card-glass">
+      <div class="card-row">
+        <div class="card-icon" style="background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(99,102,241,0.05));box-shadow:0 0 20px rgba(99,102,241,0.2);">⚡</div>
+        <div class="card-text">
+          <div class="card-title">たった3ステップで完成</div>
+          <div class="card-desc">相手と目的を選ぶだけ。敬語もトーンもAIにおまかせ</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-glass">
+      <div class="card-row">
+        <div class="card-icon" style="background:linear-gradient(135deg,rgba(192,132,252,0.2),rgba(192,132,252,0.05));box-shadow:0 0 20px rgba(192,132,252,0.2);">🎯</div>
+        <div class="card-text">
+          <div class="card-title">日本語の敬語表現に特化</div>
+          <div class="card-desc">尊敬語・謙譲語の使い分けから時候の挨拶まで自動最適化</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-glass">
+      <div class="card-row">
+        <div class="card-icon" style="background:linear-gradient(135deg,rgba(244,114,182,0.2),rgba(244,114,182,0.05));box-shadow:0 0 20px rgba(244,114,182,0.2);">📧</div>
+        <div class="card-text">
+          <div class="card-title">Gmailでそのまま送信</div>
+          <div class="card-desc">コピペ不要。作成したメールをアプリから直接送れる</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================
+     SLIDE 2: 目的を選ぶだけ 最短30秒で完成 (かんたんモード)
+     ============================================================= -->
+<div class="slide bg-2" id="slide2">
+  <div class="grid"></div>
+  <div class="noise"></div>
+  <div class="vignette"></div>
+  <div class="orb" style="width:800px;height:800px;background:rgba(56,189,248,0.22);top:-200px;left:-200px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(99,102,241,0.18);bottom:300px;right:-200px;"></div>
+  <div class="orb" style="width:400px;height:400px;background:rgba(56,189,248,0.1);bottom:100px;left:300px;"></div>
+  <div class="orb-bright" style="width:100px;height:100px;background:rgba(56,189,248,0.5);top:550px;left:300px;"></div>
+  <div class="orb-bright" style="width:80px;height:80px;background:rgba(99,102,241,0.4);top:400px;right:250px;"></div>
+
+  <div class="particle particle-sm" style="top:350px;right:180px;"></div>
+  <div class="particle particle-md" style="top:600px;left:120px;"></div>
+  <div class="particle particle-glow" style="top:480px;right:300px;color:rgba(56,189,248,0.3);"></div>
+  <div class="particle particle-glow" style="top:780px;left:250px;color:rgba(99,102,241,0.25);"></div>
+  <div class="particle particle-sm" style="top:250px;left:200px;"></div>
+  <div class="particle particle-md" style="top:850px;right:200px;"></div>
+  <div class="particle particle-sm" style="top:1100px;left:350px;"></div>
+  <div class="particle particle-glow" style="top:300px;left:700px;color:rgba(56,189,248,0.25);"></div>
+  <div class="particle-line" style="top:450px;left:200px;transform:rotate(30deg);"></div>
+  <div class="particle-line" style="top:700px;right:300px;transform:rotate(-20deg);"></div>
+  <div class="particle-diamond" style="top:500px;left:900px;"></div>
+  <div class="particle-diamond" style="top:380px;left:100px;"></div>
+  <div class="particle particle-lg" style="top:950px;left:180px;"></div>
+  <div class="particle particle-sm" style="top:200px;right:400px;"></div>
+  <div class="particle particle-glow" style="top:1050px;right:350px;color:rgba(99,102,241,0.2);"></div>
+
+  <!-- Orbit / Speed Illustration -->
+  <div class="illust-area" style="top:780px;height:672px;">
+    <svg width="860" height="672" viewBox="0 0 640 500" fill="none">
+      <!-- Circular orbit rings -->
+      <ellipse cx="320" cy="250" rx="280" ry="180" stroke="url(#s2ring1)" stroke-width="1.5" opacity="0.15"/>
+      <ellipse cx="320" cy="250" rx="220" ry="140" stroke="url(#s2ring1)" stroke-width="1" opacity="0.1"/>
+      <ellipse cx="320" cy="250" rx="160" ry="100" stroke="url(#s2ring1)" stroke-width="0.8" opacity="0.08"/>
+      <!-- Center glow (strengthened) -->
+      <circle cx="320" cy="250" r="100" fill="url(#s2centerGlow)" opacity="0.5"/>
+      <!-- Step nodes on orbit (r=56) -->
+      <!-- Node 1 - top -->
+      <g filter="url(#s2nodeGlow)">
+        <circle cx="320" cy="70" r="56" fill="url(#s2node1)"/>
+        <text x="320" y="82" text-anchor="middle" fill="white" font-size="36" font-weight="900" font-family="'Noto Sans JP',sans-serif">1</text>
+      </g>
+      <text x="320" y="152" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="24" font-weight="700" font-family="'Noto Sans JP',sans-serif">相手を選ぶ</text>
+      <!-- Node 2 - right -->
+      <g filter="url(#s2nodeGlow)">
+        <circle cx="560" cy="280" r="56" fill="url(#s2node2)"/>
+        <text x="560" y="292" text-anchor="middle" fill="white" font-size="36" font-weight="900" font-family="'Noto Sans JP',sans-serif">2</text>
+      </g>
+      <text x="560" y="362" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="24" font-weight="700" font-family="'Noto Sans JP',sans-serif">目的を選ぶ</text>
+      <!-- Node 3 - left -->
+      <g filter="url(#s2nodeGlow)">
+        <circle cx="80" cy="280" r="56" fill="url(#s2node3)"/>
+        <text x="80" y="292" text-anchor="middle" fill="white" font-size="36" font-weight="900" font-family="'Noto Sans JP',sans-serif">3</text>
+      </g>
+      <text x="80" y="362" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="24" font-weight="700" font-family="'Noto Sans JP',sans-serif">完成！</text>
+      <!-- Connecting arrows (solid lines) -->
+      <path d="M360 80 Q 500 100 548 242" stroke="url(#s2arrow1)" stroke-width="4" fill="none" opacity="0.5"/>
+      <path d="M520 310 Q 350 420 120 310" stroke="url(#s2arrow2)" stroke-width="4" fill="none" opacity="0.5"/>
+      <path d="M80 236 Q 100 120 280 76" stroke="url(#s2arrow3)" stroke-width="4" fill="none" opacity="0.5"/>
+      <!-- Center icon -->
+      <text x="320" y="260" text-anchor="middle" font-size="48">&#x2728;</text>
+      <!-- Small sparkles -->
+      <circle cx="200" cy="120" r="3" fill="#38bdf8" opacity="0.6"/>
+      <circle cx="460" cy="150" r="3" fill="#818cf8" opacity="0.6"/>
+      <circle cx="400" cy="400" r="3" fill="#c084fc" opacity="0.5"/>
+      <path d="M450 100 l3-9 3 9 9-3-9 3 3 9-3-9-9 3z" fill="#38bdf8" opacity="0.4"/>
+      <path d="M180 380 l3-9 3 9 9-3-9 3 3 9-3-9-9 3z" fill="#818cf8" opacity="0.3"/>
+      <defs>
+        <linearGradient id="s2ring1" x1="0" y1="0" x2="640" y2="500">
+          <stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#818cf8"/>
+        </linearGradient>
+        <radialGradient id="s2centerGlow" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stop-color="rgba(99,102,241,0.5)"/><stop offset="100%" stop-color="transparent"/>
+        </radialGradient>
+        <linearGradient id="s2node1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#818cf8"/>
+        </linearGradient>
+        <linearGradient id="s2node2" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#c084fc"/>
+        </linearGradient>
+        <linearGradient id="s2node3" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#c084fc"/><stop offset="100%" stop-color="#f472b6"/>
+        </linearGradient>
+        <linearGradient id="s2arrow1"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#818cf8"/></linearGradient>
+        <linearGradient id="s2arrow2"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#c084fc"/></linearGradient>
+        <linearGradient id="s2arrow3"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
+        <filter id="s2nodeGlow"><feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="rgba(99,102,241,0.5)"/></filter>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="content">
+    <div class="badge" style="border-color:rgba(56,189,248,0.4);box-shadow:0 4px 30px rgba(0,0,0,0.3),0 0 20px rgba(56,189,248,0.15);"><span class="badge-icon">⚡</span>かんたんモード</div>
+    <div class="headline">目的を選ぶだけ<br><span class="g-blue">最短30秒</span>で完成</div>
+    <div class="subheadline">トーンも敬語レベルも<br>AIが自動で最適化</div>
+  </div>
+
+  <div class="cards-area" style="background:linear-gradient(to bottom, transparent 0%, rgba(56,189,248,0.06) 5%, rgba(0,0,0,0.6) 12%, rgba(0,0,0,0.85) 22%, rgba(0,0,0,0.92) 100%);">
+    <div class="card-glass" style="margin-bottom:14px;border-left:4px solid #38bdf8;">
+      <div class="step-row">
+        <div class="step-num" style="background:linear-gradient(135deg,#38bdf8,#818cf8);">1</div>
+        <div class="card-text"><div class="card-title">相手を選ぶ</div><div class="card-desc">上司・教授・取引先など関係性を選択</div></div>
+      </div>
+    </div>
+    <div class="step-line" style="background:linear-gradient(to bottom,rgba(56,189,248,0.3),rgba(99,102,241,0.3));"></div>
+    <div class="card-glass" style="margin-bottom:14px;border-left:4px solid #818cf8;">
+      <div class="step-row">
+        <div class="step-num" style="background:linear-gradient(135deg,#818cf8,#c084fc);">2</div>
+        <div class="card-text"><div class="card-title">目的を選ぶ</div><div class="card-desc">依頼・お礼・お詫び・報告など豊富なカテゴリ</div></div>
+      </div>
+    </div>
+    <div class="step-line" style="background:linear-gradient(to bottom,rgba(99,102,241,0.3),rgba(192,132,252,0.3));"></div>
+    <div class="card-glass card-glass-accent" style="margin-bottom:28px;border-left:4px solid #c084fc;">
+      <div class="step-row">
+        <div class="step-num" style="background:linear-gradient(135deg,#c084fc,#f472b6);">3</div>
+        <div class="card-text"><div class="card-title">AIが自動生成!</div><div class="card-desc">相手に最適な敬語・トーンで完璧なメールが完成</div></div>
+      </div>
+    </div>
+    <div class="pill-wrap">
+      <div class="pill">📝 ゼミ教授への相談</div>
+      <div class="pill">💼 上司への報告</div>
+      <div class="pill">🎓 OB/OG訪問依頼</div>
+      <div class="pill">🙇 納期遅延のお詫び</div>
+      <div class="pill">📅 打ち合わせ調整</div>
+      <div class="pill">📊 進捗の共有</div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================
+     SLIDE 3: 作成から送信までアプリで完結 (テンプレ+Gmail, was Slide 5)
+     ============================================================= -->
+<div class="slide bg-3" id="slide3">
+  <div class="grid"></div>
+  <div class="noise"></div>
+  <div class="vignette"></div>
+  <div class="orb" style="width:800px;height:800px;background:rgba(251,146,60,0.22);top:-200px;right:-100px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(244,114,182,0.16);bottom:300px;left:-200px;"></div>
+  <div class="orb" style="width:400px;height:400px;background:rgba(251,146,60,0.1);bottom:100px;right:200px;"></div>
+  <div class="orb-bright" style="width:100px;height:100px;background:rgba(251,146,60,0.5);top:500px;right:300px;"></div>
+  <div class="orb-bright" style="width:80px;height:80px;background:rgba(244,114,182,0.4);top:650px;left:200px;"></div>
+
+  <div class="particle particle-sm" style="top:360px;left:140px;"></div>
+  <div class="particle particle-md" style="top:520px;right:160px;"></div>
+  <div class="particle particle-glow" style="top:440px;left:800px;color:rgba(251,146,60,0.3);"></div>
+  <div class="particle particle-glow" style="top:680px;left:250px;color:rgba(244,114,182,0.25);"></div>
+  <div class="particle particle-sm" style="top:280px;right:250px;"></div>
+  <div class="particle particle-md" style="top:900px;left:300px;"></div>
+  <div class="particle particle-sm" style="top:1050px;right:180px;"></div>
+  <div class="particle particle-glow" style="top:350px;right:400px;color:rgba(251,146,60,0.2);"></div>
+  <div class="particle-line" style="top:500px;left:150px;transform:rotate(35deg);"></div>
+  <div class="particle-line" style="top:750px;right:200px;transform:rotate(-25deg);"></div>
+  <div class="particle-diamond" style="top:600px;left:950px;"></div>
+  <div class="particle-diamond" style="top:400px;left:80px;"></div>
+  <div class="particle particle-lg" style="top:800px;right:350px;"></div>
+  <div class="particle particle-sm" style="top:220px;left:350px;"></div>
+  <div class="particle particle-glow" style="top:1000px;left:500px;color:rgba(244,114,182,0.2);"></div>
+
+  <!-- Paper airplane + Send illustration -->
+  <div class="illust-area" style="top:780px;height:654px;">
+    <svg width="880" height="654" viewBox="0 0 700 520" fill="none">
+      <!-- Trail / path (thicker) -->
+      <path d="M80 420 Q 200 380 280 320 Q 380 240 440 200 Q 520 150 600 100" stroke="url(#s3trail)" stroke-width="5" fill="none" opacity="0.25" stroke-dasharray="10 8"/>
+      <path d="M80 420 Q 200 380 280 320 Q 380 240 440 200 Q 520 150 600 100" stroke="url(#s3trail)" stroke-width="3" fill="none" opacity="0.12"/>
+      <!-- Trail dots -->
+      <circle cx="150" cy="395" r="4" fill="#fb923c" opacity="0.3"/>
+      <circle cx="240" cy="350" r="5" fill="#fb923c" opacity="0.35"/>
+      <circle cx="340" cy="280" r="6" fill="#f472b6" opacity="0.3"/>
+      <circle cx="430" cy="210" r="5" fill="#f472b6" opacity="0.25"/>
+      <circle cx="520" cy="145" r="4" fill="#fb923c" opacity="0.2"/>
+      <!-- Template cards (source) -->
+      <g filter="url(#s3cardShadow)">
+        <rect x="30" y="340" width="180" height="130" rx="18" fill="#1f1510" stroke="rgba(251,146,60,0.2)" stroke-width="1"/>
+        <rect x="52" y="365" width="80" height="8" rx="4" fill="rgba(251,146,60,0.2)"/>
+        <rect x="52" y="385" width="135" height="6" rx="3" fill="rgba(255,255,255,0.06)"/>
+        <rect x="52" y="400" width="120" height="6" rx="3" fill="rgba(255,255,255,0.06)"/>
+        <rect x="52" y="415" width="130" height="6" rx="3" fill="rgba(255,255,255,0.06)"/>
+        <text x="52" y="450" fill="rgba(251,191,36,0.6)" font-size="14" font-weight="700" font-family="'Noto Sans JP',sans-serif">📝 テンプレート</text>
+      </g>
+      <!-- Paper airplane (1.5x scale) -->
+      <g transform="translate(520,40) rotate(-20) scale(1.5)" filter="url(#s3planeGlow)">
+        <path d="M0 40 L80 0 L80 30 Z" fill="url(#s3plane1)"/>
+        <path d="M0 40 L80 80 L80 30 Z" fill="url(#s3plane2)"/>
+        <path d="M80 30 L80 50 L40 40 Z" fill="rgba(255,255,255,0.1)"/>
+      </g>
+      <!-- Gmail color ring -->
+      <circle cx="600" cy="90" r="36" stroke="#EA4335" stroke-width="2.5" fill="none" opacity="0.25" stroke-dasharray="14 42.5" stroke-dashoffset="0"/>
+      <circle cx="600" cy="90" r="36" stroke="#4285F4" stroke-width="2.5" fill="none" opacity="0.25" stroke-dasharray="14 42.5" stroke-dashoffset="-14"/>
+      <circle cx="600" cy="90" r="36" stroke="#FBBC05" stroke-width="2.5" fill="none" opacity="0.25" stroke-dasharray="14 42.5" stroke-dashoffset="-28"/>
+      <circle cx="600" cy="90" r="36" stroke="#34A853" stroke-width="2.5" fill="none" opacity="0.25" stroke-dasharray="14 42.5" stroke-dashoffset="-42"/>
+      <!-- Send ripples -->
+      <circle cx="600" cy="90" r="50" stroke="rgba(251,146,60,0.12)" stroke-width="1.5" fill="none"/>
+      <circle cx="600" cy="90" r="70" stroke="rgba(251,146,60,0.06)" stroke-width="1" fill="none"/>
+      <circle cx="600" cy="90" r="90" stroke="rgba(251,146,60,0.03)" stroke-width="1" fill="none"/>
+      <!-- Gmail icon area -->
+      <g transform="translate(560,60)">
+        <circle r="22" fill="url(#s3gmail)"/>
+        <text x="0" y="8" text-anchor="middle" font-size="20">📤</text>
+      </g>
+      <!-- Sparkles -->
+      <path d="M480 50 l4-12 4 12 12-4-12 4 4 12-4-12-12 4z" fill="#fb923c" opacity="0.5"/>
+      <path d="M620 180 l3-9 3 9 9-3-9 3 3 9-3-9-9 3z" fill="#f472b6" opacity="0.4"/>
+      <circle cx="300" cy="200" r="3" fill="#fb923c" opacity="0.4"/>
+      <circle cx="480" cy="300" r="3" fill="#f472b6" opacity="0.3"/>
+      <defs>
+        <linearGradient id="s3trail" x1="80" y1="420" x2="600" y2="100">
+          <stop offset="0%" stop-color="#fb923c"/><stop offset="100%" stop-color="#f472b6"/>
+        </linearGradient>
+        <linearGradient id="s3plane1"><stop stop-color="#fb923c"/><stop offset="1" stop-color="#f97316"/></linearGradient>
+        <linearGradient id="s3plane2"><stop stop-color="#ea580c"/><stop offset="1" stop-color="#c2410c"/></linearGradient>
+        <radialGradient id="s3gmail" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stop-color="rgba(251,146,60,0.4)"/><stop offset="100%" stop-color="rgba(251,146,60,0.1)"/>
+        </radialGradient>
+        <filter id="s3cardShadow"><feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="rgba(0,0,0,0.4)"/></filter>
+        <filter id="s3planeGlow"><feDropShadow dx="0" dy="4" stdDeviation="16" flood-color="rgba(251,146,60,0.4)"/></filter>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="content">
+    <div class="badge" style="border-color:rgba(251,146,60,0.4);box-shadow:0 4px 30px rgba(0,0,0,0.3),0 0 20px rgba(251,146,60,0.15);"><span class="badge-icon">📧</span>Gmail連携</div>
+    <div class="headline">作成から送信まで<br><span class="g-orange">アプリで完結</span></div>
+    <div class="subheadline">テンプレートで迷わず作成<br>Gmailでそのまま送信</div>
+  </div>
+
+  <div class="cards-area" style="background:linear-gradient(to bottom, transparent 0%, rgba(251,146,60,0.06) 5%, rgba(0,0,0,0.6) 12%, rgba(0,0,0,0.85) 22%, rgba(0,0,0,0.92) 100%);">
+    <div style="margin-bottom:20px;">
+      <div class="tpl-item" style="border-left:3px solid #fbbf24;"><div><div class="tpl-title">研究室訪問のお願い</div><div class="tpl-desc">教授への丁寧な訪問依頼メール</div></div><div class="tpl-badge" style="background:rgba(251,191,36,0.12);color:#fbbf24;">学校・学術</div></div>
+      <div class="tpl-item" style="border-left:3px solid #34d399;"><div><div class="tpl-title">面接後のお礼</div><div class="tpl-desc">面接官へ感謝と入社意欲を伝える</div></div><div class="tpl-badge" style="background:rgba(52,211,153,0.12);color:#34d399;">就職・転職</div></div>
+      <div class="tpl-item" style="border-left:3px solid #38bdf8;"><div><div class="tpl-title">日程変更のお願い</div><div class="tpl-desc">打ち合わせの日程変更を丁寧に依頼</div></div><div class="tpl-badge" style="background:rgba(56,189,248,0.12);color:#38bdf8;">ビジネス</div></div>
+      <div class="tpl-item" style="border-left:3px solid #f472b6;"><div><div class="tpl-title">納期遅延のお詫び</div><div class="tpl-desc">遅延の理由と今後の対応を報告</div></div><div class="tpl-badge" style="background:rgba(244,114,182,0.12);color:#f472b6;">お詫び</div></div>
+      <div class="tpl-item" style="border-left:3px solid #34d399;"><div><div class="tpl-title">内定承諾の連絡</div><div class="tpl-desc">内定受諾の意思と感謝を伝える</div></div><div class="tpl-badge" style="background:rgba(52,211,153,0.12);color:#34d399;">就職・転職</div></div>
+    </div>
+    <div class="card-glass">
+      <div class="card-row">
+        <div class="card-icon" style="background:linear-gradient(135deg,rgba(251,146,60,0.2),rgba(251,146,60,0.05));box-shadow:0 0 20px rgba(251,146,60,0.2);">📤</div>
+        <div class="card-text">
+          <div class="card-title">Gmailでそのまま送信</div>
+          <div class="card-desc">OAuth認証で安全に連携。アプリから直接メール送信</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================
+     SLIDE 4: 納得いくまで再生成して選べる (was Slide 3)
+     ============================================================= -->
+<div class="slide bg-4" id="slide4">
+  <div class="grid"></div>
+  <div class="noise"></div>
+  <div class="vignette"></div>
+  <div class="orb" style="width:800px;height:800px;background:rgba(167,139,250,0.22);top:-200px;right:-100px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(244,114,182,0.16);bottom:200px;left:-200px;"></div>
+  <div class="orb" style="width:400px;height:400px;background:rgba(139,92,246,0.12);top:600px;left:400px;"></div>
+  <div class="orb-bright" style="width:100px;height:100px;background:rgba(167,139,250,0.5);top:580px;left:250px;"></div>
+  <div class="orb-bright" style="width:80px;height:80px;background:rgba(244,114,182,0.4);top:420px;right:300px;"></div>
+
+  <div class="particle particle-sm" style="top:320px;left:140px;"></div>
+  <div class="particle particle-md" style="top:550px;right:120px;"></div>
+  <div class="particle particle-glow" style="top:480px;left:900px;color:rgba(167,139,250,0.3);"></div>
+  <div class="particle particle-glow" style="top:700px;left:200px;color:rgba(244,114,182,0.25);"></div>
+  <div class="particle particle-sm" style="top:260px;right:300px;"></div>
+  <div class="particle particle-md" style="top:850px;left:350px;"></div>
+  <div class="particle particle-sm" style="top:1050px;right:200px;"></div>
+  <div class="particle particle-glow" style="top:380px;left:600px;color:rgba(139,92,246,0.25);"></div>
+  <div class="particle-line" style="top:480px;left:250px;transform:rotate(20deg);"></div>
+  <div class="particle-line" style="top:720px;right:180px;transform:rotate(-30deg);"></div>
+  <div class="particle-diamond" style="top:550px;left:850px;"></div>
+  <div class="particle-diamond" style="top:370px;left:120px;"></div>
+  <div class="particle particle-lg" style="top:900px;right:300px;"></div>
+  <div class="particle particle-sm" style="top:200px;left:400px;"></div>
+  <div class="particle particle-glow" style="top:1000px;left:600px;color:rgba(167,139,250,0.2);"></div>
+
+  <!-- Stacked documents illustration (enlarged, stronger glow) -->
+  <div class="illust-area" style="top:790px;height:654px;">
+    <svg width="880" height="654" viewBox="0 0 700 520" fill="none">
+      <!-- Document 3 (back) -->
+      <g transform="rotate(-6 350 260)" filter="url(#s4docShadow)">
+        <rect x="180" y="80" width="340" height="420" rx="24" fill="#1a1030" stroke="rgba(244,114,182,0.2)" stroke-width="1.5"/>
+        <rect x="220" y="130" width="140" height="10" rx="5" fill="rgba(244,114,182,0.2)"/>
+        <rect x="220" y="160" width="260" height="7" rx="3.5" fill="rgba(255,255,255,0.06)"/>
+        <rect x="220" y="180" width="240" height="7" rx="3.5" fill="rgba(255,255,255,0.06)"/>
+        <rect x="220" y="200" width="260" height="7" rx="3.5" fill="rgba(255,255,255,0.06)"/>
+      </g>
+      <!-- Document 1 (back left) -->
+      <g transform="rotate(5 350 260)" filter="url(#s4docShadow)">
+        <rect x="180" y="80" width="340" height="420" rx="24" fill="#1a1030" stroke="rgba(167,139,250,0.2)" stroke-width="1.5"/>
+        <rect x="220" y="130" width="140" height="10" rx="5" fill="rgba(167,139,250,0.2)"/>
+        <rect x="220" y="160" width="260" height="7" rx="3.5" fill="rgba(255,255,255,0.06)"/>
+        <rect x="220" y="180" width="240" height="7" rx="3.5" fill="rgba(255,255,255,0.06)"/>
+        <rect x="220" y="200" width="260" height="7" rx="3.5" fill="rgba(255,255,255,0.06)"/>
+      </g>
+      <!-- Document 2 (front, selected - stronger glow) -->
+      <g filter="url(#s4docGlow)">
+        <rect x="180" y="60" width="340" height="440" rx="24" fill="url(#s4docFront)" stroke="rgba(99,102,241,0.4)" stroke-width="2"/>
+        <!-- AI badge -->
+        <rect x="210" y="90" width="110" height="34" rx="17" fill="url(#s4aiBadge)"/>
+        <text x="238" y="114" fill="white" font-size="17" font-weight="700" font-family="'Noto Sans JP',sans-serif">&#x2728; AI生成</text>
+        <!-- Content lines -->
+        <rect x="210" y="145" width="120" height="9" rx="4.5" fill="rgba(255,255,255,0.2)"/>
+        <rect x="210" y="175" width="280" height="7" rx="3.5" fill="rgba(255,255,255,0.1)"/>
+        <rect x="210" y="195" width="260" height="7" rx="3.5" fill="rgba(255,255,255,0.1)"/>
+        <rect x="210" y="215" width="280" height="7" rx="3.5" fill="rgba(255,255,255,0.1)"/>
+        <rect x="210" y="235" width="240" height="7" rx="3.5" fill="rgba(255,255,255,0.1)"/>
+        <rect x="210" y="255" width="280" height="7" rx="3.5" fill="rgba(255,255,255,0.1)"/>
+        <rect x="210" y="275" width="200" height="7" rx="3.5" fill="rgba(255,255,255,0.1)"/>
+        <rect x="210" y="295" width="260" height="7" rx="3.5" fill="rgba(255,255,255,0.1)"/>
+        <rect x="210" y="315" width="180" height="7" rx="3.5" fill="rgba(255,255,255,0.1)"/>
+        <!-- Page indicator -->
+        <rect x="270" y="420" width="160" height="36" rx="18" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.4)" stroke-width="1"/>
+        <text x="350" y="445" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-size="18" font-weight="700" font-family="'Noto Sans JP',sans-serif">&#x25C2;  2 / 3  &#x25B8;</text>
+      </g>
+      <!-- Checkmark on selected (enlarged) -->
+      <circle cx="490" cy="90" r="30" fill="url(#s4check)"/>
+      <path d="M476 90 l8 10 18-20" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Sparkles -->
+      <path d="M140 120 l4-12 4 12 12-4-12 4 4 12-4-12-12 4z" fill="#a78bfa" opacity="0.5"/>
+      <path d="M560 180 l3-9 3 9 9-3-9 3 3 9-3-9-9 3z" fill="#f472b6" opacity="0.4"/>
+      <circle cx="600" cy="400" r="3" fill="#818cf8" opacity="0.4"/>
+      <circle cx="100" cy="350" r="3" fill="#c084fc" opacity="0.4"/>
+      <defs>
+        <linearGradient id="s4docFront" x1="180" y1="60" x2="520" y2="500">
+          <stop offset="0%" stop-color="#1e1555"/><stop offset="100%" stop-color="#120d38"/>
+        </linearGradient>
+        <linearGradient id="s4aiBadge"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+        <linearGradient id="s4check"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+        <filter id="s4docShadow"><feDropShadow dx="0" dy="6" stdDeviation="16" flood-color="rgba(0,0,0,0.4)"/></filter>
+        <filter id="s4docGlow"><feDropShadow dx="0" dy="8" stdDeviation="32" flood-color="rgba(99,102,241,0.4)"/></filter>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="content">
+    <div class="badge" style="border-color:rgba(192,132,252,0.4);box-shadow:0 4px 30px rgba(0,0,0,0.3),0 0 20px rgba(192,132,252,0.15);"><span class="badge-icon">🔄</span>何度でも再生成</div>
+    <div class="headline">納得いくまで<br><span class="g-pink">再生成</span>して選べる</div>
+    <div class="subheadline">複数バージョンを比較して<br>自分にぴったりのメールを選択</div>
+  </div>
+
+  <div class="cards-area" style="background:linear-gradient(to bottom, transparent 0%, rgba(139,92,246,0.06) 5%, rgba(0,0,0,0.6) 12%, rgba(0,0,0,0.85) 22%, rgba(0,0,0,0.92) 100%);">
+    <div class="mail-card card-glass" style="border-color:rgba(167,139,250,0.2);">
+      <div class="mail-badge" style="background:rgba(167,139,250,0.15);color:#a78bfa;">&#x2728; フォーマル</div>
+      <div class="mail-subject">研究室ご訪問のお願い</div>
+      <div class="mail-body">佐藤教授　平素より大変お世話になっております。○○学部3年の山田太郎と申します。突然のお願いで恐縮ではございますが…</div>
+    </div>
+    <div class="mail-card card-glass card-glass-accent">
+      <div class="mail-badge" style="background:rgba(99,102,241,0.25);color:#818cf8;">&#x2728; おすすめ</div>
+      <div class="mail-subject">研究室訪問のお願い</div>
+      <div class="mail-body">佐藤教授　突然のご連絡失礼いたします。○○大学3年の山田太郎です。先生の「○○」に関するご研究に大変興味があり…</div>
+    </div>
+    <div class="mail-card card-glass" style="border-color:rgba(244,114,182,0.2);">
+      <div class="mail-badge" style="background:rgba(244,114,182,0.15);color:#f472b6;">&#x2728; カジュアル</div>
+      <div class="mail-subject">研究室訪問について</div>
+      <div class="mail-body">佐藤教授　お忙しいところ失礼します。○○学科3年の山田です。先生の研究に興味があり、一度お話を伺えればと思い…</div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================
+     SLIDE 5: 使うほどに自分らしいメールに (学習データ, was Slide 4)
+     ============================================================= -->
+<div class="slide bg-5" id="slide5">
+  <div class="grid"></div>
+  <div class="noise"></div>
+  <div class="vignette"></div>
+  <div class="orb" style="width:800px;height:800px;background:rgba(52,211,153,0.2);top:-200px;left:-100px;"></div>
+  <div class="orb" style="width:600px;height:600px;background:rgba(45,212,191,0.15);bottom:300px;right:-200px;"></div>
+  <div class="orb" style="width:400px;height:400px;background:rgba(56,189,248,0.1);bottom:100px;left:300px;"></div>
+  <div class="orb-bright" style="width:100px;height:100px;background:rgba(52,211,153,0.5);top:550px;right:250px;"></div>
+  <div class="orb-bright" style="width:80px;height:80px;background:rgba(45,212,191,0.4);top:400px;left:350px;"></div>
+
+  <div class="particle particle-sm" style="top:340px;right:160px;"></div>
+  <div class="particle particle-md" style="top:580px;left:100px;"></div>
+  <div class="particle particle-glow" style="top:500px;right:200px;color:rgba(52,211,153,0.3);"></div>
+  <div class="particle particle-glow" style="top:720px;left:300px;color:rgba(45,212,191,0.25);"></div>
+  <div class="particle particle-sm" style="top:250px;left:250px;"></div>
+  <div class="particle particle-md" style="top:900px;right:300px;"></div>
+  <div class="particle particle-sm" style="top:1080px;left:400px;"></div>
+  <div class="particle particle-glow" style="top:350px;right:350px;color:rgba(52,211,153,0.2);"></div>
+  <div class="particle-line" style="top:460px;left:180px;transform:rotate(15deg);"></div>
+  <div class="particle-line" style="top:680px;right:250px;transform:rotate(-35deg);"></div>
+  <div class="particle-diamond" style="top:520px;left:900px;"></div>
+  <div class="particle-diamond" style="top:380px;left:130px;"></div>
+  <div class="particle particle-lg" style="top:850px;left:200px;"></div>
+  <div class="particle particle-sm" style="top:200px;right:450px;"></div>
+  <div class="particle particle-glow" style="top:1000px;right:350px;color:rgba(45,212,191,0.2);"></div>
+
+  <!-- Neural network / Brain illustration (enlarged, 9 nodes) -->
+  <div class="illust-area" style="top:790px;height:626px;">
+    <svg width="860" height="626" viewBox="0 0 660 480" fill="none">
+      <!-- Network connections (thicker) -->
+      <line x1="180" y1="120" x2="330" y2="240" stroke="url(#s5line1)" stroke-width="2.5" opacity="0.2"/>
+      <line x1="480" y1="120" x2="330" y2="240" stroke="url(#s5line1)" stroke-width="2.5" opacity="0.2"/>
+      <line x1="330" y1="240" x2="180" y2="360" stroke="url(#s5line2)" stroke-width="2.5" opacity="0.2"/>
+      <line x1="330" y1="240" x2="480" y2="360" stroke="url(#s5line2)" stroke-width="2.5" opacity="0.2"/>
+      <line x1="120" y1="240" x2="330" y2="240" stroke="url(#s5line1)" stroke-width="2" opacity="0.15"/>
+      <line x1="540" y1="240" x2="330" y2="240" stroke="url(#s5line1)" stroke-width="2" opacity="0.15"/>
+      <line x1="180" y1="120" x2="480" y2="360" stroke="url(#s5line2)" stroke-width="1.5" opacity="0.08"/>
+      <line x1="480" y1="120" x2="180" y2="360" stroke="url(#s5line2)" stroke-width="1.5" opacity="0.08"/>
+      <!-- New connections for additional nodes -->
+      <line x1="260" y1="80" x2="330" y2="240" stroke="url(#s5line1)" stroke-width="2" opacity="0.15"/>
+      <line x1="400" y1="80" x2="330" y2="240" stroke="url(#s5line1)" stroke-width="2" opacity="0.15"/>
+      <line x1="330" y1="410" x2="330" y2="240" stroke="url(#s5line2)" stroke-width="2" opacity="0.15"/>
+      <line x1="260" y1="80" x2="180" y2="120" stroke="url(#s5line1)" stroke-width="1.5" opacity="0.1"/>
+      <line x1="400" y1="80" x2="480" y2="120" stroke="url(#s5line1)" stroke-width="1.5" opacity="0.1"/>
+      <line x1="330" y1="410" x2="180" y2="360" stroke="url(#s5line2)" stroke-width="1.5" opacity="0.1"/>
+      <line x1="330" y1="410" x2="480" y2="360" stroke="url(#s5line2)" stroke-width="1.5" opacity="0.1"/>
+      <!-- Data flow dots -->
+      <circle cx="255" cy="180" r="3" fill="#34d399" opacity="0.6"/>
+      <circle cx="405" cy="180" r="3" fill="#2dd4bf" opacity="0.6"/>
+      <circle cx="255" cy="300" r="3" fill="#38bdf8" opacity="0.5"/>
+      <circle cx="405" cy="300" r="3" fill="#34d399" opacity="0.5"/>
+      <circle cx="225" cy="240" r="3" fill="#2dd4bf" opacity="0.4"/>
+      <circle cx="435" cy="240" r="3" fill="#38bdf8" opacity="0.4"/>
+      <!-- Center node -->
+      <circle cx="330" cy="240" r="50" fill="url(#s5center)" filter="url(#s5glow)"/>
+      <text x="330" y="250" text-anchor="middle" font-size="42">🧠</text>
+      <!-- Original 6 outer nodes -->
+      <circle cx="180" cy="120" r="30" fill="url(#s5node)" opacity="0.6" filter="url(#s5nodeGlow)"/>
+      <text x="180" y="130" text-anchor="middle" font-size="26">&#x270F;&#xFE0F;</text>
+      <circle cx="480" cy="120" r="30" fill="url(#s5node)" opacity="0.6" filter="url(#s5nodeGlow)"/>
+      <text x="480" y="130" text-anchor="middle" font-size="26">📊</text>
+      <circle cx="180" cy="360" r="30" fill="url(#s5node)" opacity="0.6" filter="url(#s5nodeGlow)"/>
+      <text x="180" y="370" text-anchor="middle" font-size="26">💬</text>
+      <circle cx="480" cy="360" r="30" fill="url(#s5node)" opacity="0.6" filter="url(#s5nodeGlow)"/>
+      <text x="480" y="370" text-anchor="middle" font-size="26">&#x2709;&#xFE0F;</text>
+      <circle cx="120" cy="240" r="24" fill="url(#s5node)" opacity="0.4" filter="url(#s5nodeGlow)"/>
+      <text x="120" y="250" text-anchor="middle" font-size="22">📝</text>
+      <circle cx="540" cy="240" r="24" fill="url(#s5node)" opacity="0.4" filter="url(#s5nodeGlow)"/>
+      <text x="540" y="250" text-anchor="middle" font-size="22">🎯</text>
+      <!-- 3 new nodes (total 9) -->
+      <circle cx="260" cy="80" r="24" fill="url(#s5node)" opacity="0.5" filter="url(#s5nodeGlow)"/>
+      <text x="260" y="90" text-anchor="middle" font-size="22">📋</text>
+      <circle cx="400" cy="80" r="24" fill="url(#s5node)" opacity="0.5" filter="url(#s5nodeGlow)"/>
+      <text x="400" y="90" text-anchor="middle" font-size="22">💡</text>
+      <circle cx="330" cy="410" r="24" fill="url(#s5node)" opacity="0.5" filter="url(#s5nodeGlow)"/>
+      <text x="330" y="420" text-anchor="middle" font-size="22">🔄</text>
+      <!-- Animated pulse rings -->
+      <circle cx="330" cy="240" r="70" stroke="rgba(52,211,153,0.15)" stroke-width="1" fill="none"/>
+      <circle cx="330" cy="240" r="100" stroke="rgba(52,211,153,0.08)" stroke-width="1" fill="none"/>
+      <circle cx="330" cy="240" r="130" stroke="rgba(52,211,153,0.04)" stroke-width="1" fill="none"/>
+      <!-- Sparkles -->
+      <circle cx="260" cy="160" r="3" fill="#34d399" opacity="0.5"/>
+      <circle cx="420" cy="180" r="3" fill="#2dd4bf" opacity="0.5"/>
+      <circle cx="300" cy="380" r="3" fill="#38bdf8" opacity="0.4"/>
+      <path d="M80 180 l3-9 3 9 9-3-9 3 3 9-3-9-9 3z" fill="#34d399" opacity="0.4"/>
+      <path d="M580 300 l3-9 3 9 9-3-9 3 3 9-3-9-9 3z" fill="#2dd4bf" opacity="0.3"/>
+      <defs>
+        <linearGradient id="s5line1"><stop stop-color="#34d399"/><stop offset="1" stop-color="#2dd4bf"/></linearGradient>
+        <linearGradient id="s5line2"><stop stop-color="#2dd4bf"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
+        <radialGradient id="s5center" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stop-color="rgba(52,211,153,0.3)"/><stop offset="100%" stop-color="rgba(52,211,153,0.05)"/>
+        </radialGradient>
+        <radialGradient id="s5node" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stop-color="rgba(52,211,153,0.25)"/><stop offset="100%" stop-color="rgba(52,211,153,0.05)"/>
+        </radialGradient>
+        <filter id="s5glow"><feDropShadow dx="0" dy="0" stdDeviation="20" flood-color="rgba(52,211,153,0.4)"/></filter>
+        <filter id="s5nodeGlow"><feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="rgba(52,211,153,0.3)"/></filter>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="content">
+    <div class="badge" style="border-color:rgba(52,211,153,0.4);box-shadow:0 4px 30px rgba(0,0,0,0.3),0 0 20px rgba(52,211,153,0.15);"><span class="badge-icon">🧠</span>学習データ管理</div>
+    <div class="headline">使うほどに<br><span class="g-green">自分らしい</span>メールに</div>
+    <div class="subheadline">文体の指示を設定するだけで<br>あなたの言い回しをAIが再現</div>
+  </div>
+
+  <div class="cards-area" style="background:linear-gradient(to bottom, transparent 0%, rgba(52,211,153,0.06) 5%, rgba(0,0,0,0.6) 12%, rgba(0,0,0,0.85) 22%, rgba(0,0,0,0.92) 100%);">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-val" style="color:#34d399;">丁寧体</div><div class="stat-label">基本スタイル</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#2dd4bf;">簡潔に</div><div class="stat-label">文章の長さ</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#38bdf8;">あり</div><div class="stat-label">時候の挨拶</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#a78bfa;">統一</div><div class="stat-label">結びの表現</div></div>
+    </div>
+    <div class="card-glass" style="margin-bottom:20px;">
+      <div class="card-row">
+        <div class="card-icon" style="background:linear-gradient(135deg,rgba(52,211,153,0.2),rgba(52,211,153,0.05));box-shadow:0 0 20px rgba(52,211,153,0.2);">&#x270F;&#xFE0F;</div>
+        <div class="card-text">
+          <div class="card-title">自由にカスタマイズ</div>
+          <div class="card-desc">「堅すぎない丁寧語で」「結びは毎回同じにして」など自分好みに指定</div>
+        </div>
+      </div>
+    </div>
+    <div class="pill-wrap">
+      <div class="pill">お忙しいところ恐れ入ります</div>
+      <div class="pill">何卒よろしくお願いいたします</div>
+      <div class="pill">ご査収のほどお願い申し上げます</div>
+      <div class="pill">引き続きよろしくお願いいたします</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

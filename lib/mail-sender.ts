@@ -162,10 +162,17 @@ async function sendViaGmail(params: SendMailParams): Promise<SendMailResult> {
   });
 
   if (error) {
-    return {
-      success: false,
-      error: data?.error ?? 'メールの送信に失敗しました。',
-    };
+    // Supabase JS v2 では error.context に未読の fetch Response が入る
+    let errorMessage = data?.error ?? 'メールの送信に失敗しました。';
+    try {
+      const ctx = (error as { context?: Response }).context;
+      if (ctx) {
+        const body = await ctx.clone().json() as { error?: string };
+        if (body?.error) errorMessage = body.error;
+      }
+    } catch { /* ignore */ }
+    if (__DEV__) console.error('[sendViaGmail] error:', errorMessage);
+    return { success: false, error: errorMessage };
   }
 
   return {
@@ -215,10 +222,16 @@ async function sendViaOutlook(params: SendMailParams): Promise<SendMailResult> {
   });
 
   if (error) {
-    return {
-      success: false,
-      error: data?.error ?? 'メールの送信に失敗しました。',
-    };
+    let errorMessage = data?.error ?? 'メールの送信に失敗しました。';
+    try {
+      const ctx = (error as { context?: Response }).context;
+      if (ctx) {
+        const body = await ctx.clone().json() as { error?: string };
+        if (body?.error) errorMessage = body.error;
+      }
+    } catch { /* ignore */ }
+    if (__DEV__) console.error('[sendViaOutlook] error:', errorMessage);
+    return { success: false, error: errorMessage };
   }
 
   return {
