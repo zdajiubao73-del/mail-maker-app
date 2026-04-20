@@ -8,7 +8,7 @@ const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-const MAX_REQUEST_SIZE = 10 * 1024; // 10KB
+const MAX_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB (画像OCR対応)
 
 // --- 型定義 ---
 
@@ -718,6 +718,209 @@ function authenticateRequest(req: Request): boolean {
   return !!(apikey || authHeader);
 }
 
+// --- リライトモード ---
+
+async function handleRewrite(body: Record<string, unknown>, corsHeaders: Record<string, string>): Promise<Response> {
+  const draftText = body.draftText;
+  if (typeof draftText !== "string" || !draftText.trim()) {
+    return new Response(
+      JSON.stringify({ error: "draftText は必須です。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (draftText.length > 3000) {
+    return new Response(
+      JSON.stringify({ error: "draftText は3000文字以内にしてください。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const honorificsLevel = (body.honorificsLevel as HonorificsLevel) ?? "丁寧";
+  const atmosphere = (body.atmosphere as Atmosphere) ?? "落ち着いた";
+  const mailLength = (body.mailLength as MailLength) ?? "標準";
+  const signature = typeof body.signature === "string" ? body.signature : undefined;
+  const regenerationInstruction = typeof body.regenerationInstruction === "string" ? body.regenerationInstruction : undefined;
+  const previousMail = body.previousMail as { subject: string; body: string } | undefined;
+
+  const lengthGuide: Record<MailLength, string> = {
+    "短め": "本文150〜250文字程度",
+    "標準": "本文300〜500文字程度",
+    "長め": "本文500〜800文字程度",
+  };
+
+  const systemPrompt = `あなたは日本語メール添削の専門家です。
+ユーザーが書いた下書きメールを、ビジネスマナーと敬語の観点から自然に整えてください。
+
+${getHonorificsDetail(VALID_HONORIFICS_LEVELS.includes(honorificsLevel) ? honorificsLevel : "丁寧")}
+
+${getAtmosphereDetail(VALID_ATMOSPHERES.includes(atmosphere) ? atmosphere : "落ち着いた")}
+
+## 添削の方針
+- 下書きの内容・意図・要点は変えない
+- 敬語・文体を指定レベルに整える
+- 冗長な表現を簡潔に、伝わりにくい部分を明確に
+- 宛名・署名は本文に含めない
+- ${lengthGuide[VALID_MAIL_LENGTHS.includes(mailLength) ? mailLength : "標準"]}
+
+## アンチパターン
+- 二重敬語（×「おっしゃられる」）
+- 「させていただきます」の乱用（1通1回まで）
+- 「〜の方」「〜になります」等の誤用敬語
+
+## 出力ルール
+必ず以下のJSON形式で出力: {"subject": "件名", "body": "本文"}
+件名は30文字以内。改行は \\n。JSON以外は出力しない。`;
+
+  let userPrompt = `以下の下書きメールを整えてください:\n\n"""\n${sanitizeUserInput(draftText)}\n"""`;
+  if (regenerationInstruction && previousMail) {
+    userPrompt += `\n\n【再整形指示】先ほど生成した結果:\n件名: ${sanitizeUserInput(previousMail.subject)}\n本文:\n${sanitizeUserInput(previousMail.body)}\n\n修正指示: 「${sanitizeUserInput(regenerationInstruction)}」\n\n上記の修正指示に従って書き直してください。`;
+  } else if (regenerationInstruction) {
+    userPrompt += `\n\n【修正指示】「${sanitizeUserInput(regenerationInstruction)}」`;
+  }
+
+  const result = await callOpenAI(systemPrompt, userPrompt);
+  if (signature) {
+    const trimmedSig = signature.trim();
+    if (!result.body.trimEnd().endsWith(trimmedSig)) {
+      result.body += `\n\n${signature}`;
+    }
+  }
+  return new Response(JSON.stringify(result), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+// --- 返信生成モード ---
+
+async function handleReply(body: Record<string, unknown>, corsHeaders: Record<string, string>): Promise<Response> {
+  const receivedMailText = body.receivedMailText;
+  const replyIntent = body.replyIntent;
+
+  if (typeof receivedMailText !== "string" || !receivedMailText.trim()) {
+    return new Response(
+      JSON.stringify({ error: "receivedMailText は必須です。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (typeof replyIntent !== "string" || !replyIntent.trim()) {
+    return new Response(
+      JSON.stringify({ error: "replyIntent は必須です。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (receivedMailText.length > 3000) {
+    return new Response(
+      JSON.stringify({ error: "receivedMailText は3000文字以内にしてください。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (replyIntent.length > 500) {
+    return new Response(
+      JSON.stringify({ error: "replyIntent は500文字以内にしてください。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const honorificsLevel = (body.honorificsLevel as HonorificsLevel) ?? "丁寧";
+  const atmosphere = (body.atmosphere as Atmosphere) ?? "落ち着いた";
+  const mailLength = (body.mailLength as MailLength) ?? "標準";
+  const signature = typeof body.signature === "string" ? body.signature : undefined;
+  const regenerationInstruction = typeof body.regenerationInstruction === "string" ? body.regenerationInstruction : undefined;
+  const previousMail = body.previousMail as { subject: string; body: string } | undefined;
+
+  const lengthGuide: Record<MailLength, string> = {
+    "短め": "本文150〜250文字程度",
+    "標準": "本文300〜500文字程度",
+    "長め": "本文500〜800文字程度",
+  };
+
+  const systemPrompt = `あなたは日本語ビジネスメール作成の専門家です。
+受け取ったメールに対する返信を作成してください。
+
+${getHonorificsDetail(VALID_HONORIFICS_LEVELS.includes(honorificsLevel) ? honorificsLevel : "丁寧")}
+
+${getAtmosphereDetail(VALID_ATMOSPHERES.includes(atmosphere) ? atmosphere : "落ち着いた")}
+
+## 返信作成の方針
+- 受け取ったメールの内容を踏まえた自然な返信
+- ユーザーの返信意図を的確に表現
+- 宛名・署名は本文に含めない
+- ${lengthGuide[VALID_MAIL_LENGTHS.includes(mailLength) ? mailLength : "標準"]}
+- 件名は「Re: 元の件名」形式で
+
+## 出力ルール
+必ず以下のJSON形式で出力: {"subject": "件名", "body": "本文"}
+改行は \\n。JSON以外は出力しない。`;
+
+  let userPrompt = `【受け取ったメール】\n"""\n${sanitizeUserInput(receivedMailText)}\n"""\n\n【返信の意図】\n${sanitizeUserInput(replyIntent)}`;
+  if (regenerationInstruction && previousMail) {
+    userPrompt += `\n\n【再生成指示】先ほど生成した返信:\n件名: ${sanitizeUserInput(previousMail.subject)}\n本文:\n${sanitizeUserInput(previousMail.body)}\n\n修正指示: 「${sanitizeUserInput(regenerationInstruction)}」`;
+  } else if (regenerationInstruction) {
+    userPrompt += `\n\n【修正指示】「${sanitizeUserInput(regenerationInstruction)}」`;
+  }
+
+  const result = await callOpenAI(systemPrompt, userPrompt);
+  if (signature) {
+    const trimmedSig = signature.trim();
+    if (!result.body.trimEnd().endsWith(trimmedSig)) {
+      result.body += `\n\n${signature}`;
+    }
+  }
+  return new Response(JSON.stringify(result), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+// --- OCRモード（スクショからテキスト抽出） ---
+
+async function handleExtractText(body: Record<string, unknown>, corsHeaders: Record<string, string>): Promise<Response> {
+  const imageBase64 = body.imageBase64;
+  const mimeType = (body.mimeType as string) ?? "image/jpeg";
+
+  if (typeof imageBase64 !== "string" || !imageBase64) {
+    return new Response(
+      JSON.stringify({ error: "imageBase64 は必須です。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${imageBase64}`,
+              detail: "high",
+            },
+          },
+          {
+            type: "text",
+            text: "このスクリーンショットに表示されているメールの文章を全て正確に抽出してください。宛名・本文・署名など全ての文章を含めてください。抽出したテキストのみを出力してください。余計な説明は不要です。",
+          },
+        ],
+      }],
+      max_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    throw { status: 502, message: "画像からのテキスト抽出に失敗しました。" };
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) {
+    throw { status: 502, message: "テキストを抽出できませんでした。" };
+  }
+
+  return new Response(JSON.stringify({ text }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
 // --- メインハンドラー ---
 
 Deno.serve(async (req) => {
@@ -792,7 +995,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // バリデーション
+    // モード別ルーティング
+    const bodyObj = body as Record<string, unknown>;
+    const mode = bodyObj.mode;
+
+    if (mode === "rewrite") {
+      return await handleRewrite(bodyObj, corsHeaders);
+    }
+    if (mode === "reply") {
+      return await handleReply(bodyObj, corsHeaders);
+    }
+    if (mode === "extract_text") {
+      return await handleExtractText(bodyObj, corsHeaders);
+    }
+
+    // バリデーション（従来の generate モード）
     const validation = validateRequest(body);
     if (!validation.valid) {
       return new Response(

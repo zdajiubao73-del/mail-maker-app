@@ -2,7 +2,7 @@
 // Supabase Edge Function 経由で OpenAI GPT API を呼び出す
 // EXPO_PUBLIC_USE_MOCK_AI=true 時はモック実装にフォールバック
 
-import type { MailGenerationRequest, GeneratedMail } from '@/types/mail';
+import type { MailGenerationRequest, GeneratedMail, RewriteRequest, ReplyRequest } from '@/types/mail';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -115,9 +115,6 @@ async function generateMailViaAPI(
 
 /**
  * メールを生成する
- *
- * 環境変数 EXPO_PUBLIC_USE_MOCK_AI=true の場合はモック実装にフォールバック。
- * それ以外の場合は Supabase Edge Function 経由で OpenAI GPT API を呼び出す。
  */
 export async function generateMail(
   request: MailGenerationRequest,
@@ -130,4 +127,101 @@ export async function generateMail(
   }
 
   return generateMailViaAPI(request);
+}
+
+/**
+ * 下書きメールをAIでリライト（整える）する
+ */
+export async function rewriteMail(request: RewriteRequest): Promise<GeneratedMail> {
+  if (useMock()) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return {
+      id: generateId(),
+      subject: '【整形済み】ご確認のお願い',
+      body: `お世話になっております。\n\n${request.draftText}\n\n何卒よろしくお願いいたします。`,
+      createdAt: new Date(),
+    };
+  }
+
+  const { data, error } = await supabase.functions.invoke('generate-mail', {
+    body: { mode: 'rewrite', ...request },
+  });
+
+  if (error) {
+    throw new MailGenerationError(
+      error.name === 'FunctionsFetchError'
+        ? 'ネットワークエラーが発生しました。接続を確認してください。'
+        : 'メールの整形に失敗しました。',
+      error.name === 'FunctionsFetchError' ? 'NETWORK' : 'API_ERROR',
+    );
+  }
+
+  if (!data?.subject || !data?.body) {
+    throw new MailGenerationError('AIからの応答が不完全です。再度お試しください。', 'API_ERROR');
+  }
+
+  return { id: generateId(), subject: data.subject, body: data.body, createdAt: new Date() };
+}
+
+/**
+ * 受け取ったメールに対する返信を生成する
+ */
+export async function generateReply(request: ReplyRequest): Promise<GeneratedMail> {
+  if (useMock()) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return {
+      id: generateId(),
+      subject: 'Re: ご連絡ありがとうございます',
+      body: `お世話になっております。\n\nご連絡いただきありがとうございます。\n${request.replyIntent}\n\n何卒よろしくお願いいたします。`,
+      createdAt: new Date(),
+    };
+  }
+
+  const { data, error } = await supabase.functions.invoke('generate-mail', {
+    body: { mode: 'reply', ...request },
+  });
+
+  if (error) {
+    throw new MailGenerationError(
+      error.name === 'FunctionsFetchError'
+        ? 'ネットワークエラーが発生しました。接続を確認してください。'
+        : '返信の生成に失敗しました。',
+      error.name === 'FunctionsFetchError' ? 'NETWORK' : 'API_ERROR',
+    );
+  }
+
+  if (!data?.subject || !data?.body) {
+    throw new MailGenerationError('AIからの応答が不完全です。再度お試しください。', 'API_ERROR');
+  }
+
+  return { id: generateId(), subject: data.subject, body: data.body, createdAt: new Date() };
+}
+
+/**
+ * スクリーンショットからメールテキストを抽出する（OCR）
+ */
+export async function extractTextFromImage(imageBase64: string, mimeType: string = 'image/jpeg'): Promise<string> {
+  if (useMock()) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return '（モック）お世話になっております。\n\n先日のご提案について確認させてください。\n\nよろしくお願いいたします。';
+  }
+
+  const { data, error } = await supabase.functions.invoke('generate-mail', {
+    body: { mode: 'extract_text', imageBase64, mimeType },
+  });
+
+  if (error) {
+    throw new MailGenerationError(
+      error.name === 'FunctionsFetchError'
+        ? 'ネットワークエラーが発生しました。接続を確認してください。'
+        : 'テキストの抽出に失敗しました。',
+      error.name === 'FunctionsFetchError' ? 'NETWORK' : 'API_ERROR',
+    );
+  }
+
+  if (!data?.text) {
+    throw new MailGenerationError('テキストを抽出できませんでした。', 'API_ERROR');
+  }
+
+  return data.text;
 }

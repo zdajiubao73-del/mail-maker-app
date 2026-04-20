@@ -13,6 +13,8 @@ export type {
   ToneSettings,
   AdditionalInfo,
   MailGenerationRequest,
+  RewriteRequest,
+  ReplyRequest,
   GeneratedMail,
   MailHistoryItem,
   Attachment,

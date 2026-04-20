@@ -136,8 +136,9 @@ function RootLayout() {
       }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-        <Stack.Screen name="create/simple" options={{ title: 'かんたん作成' }} />
         <Stack.Screen name="create/detailed" options={{ title: 'こだわり作成' }} />
+        <Stack.Screen name="create/rewrite" options={{ title: 'リライト' }} />
+        <Stack.Screen name="create/reply" options={{ title: '返信生成' }} />
         <Stack.Screen name="templates/index" options={{ title: 'テンプレート一覧' }} />
         <Stack.Screen name="create/template" options={{ title: 'テンプレートから作成' }} />
         <Stack.Screen name="preview" options={{ title: 'プレビュー' }} />

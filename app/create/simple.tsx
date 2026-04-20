@@ -119,7 +119,7 @@ export default function SimpleCreateScreen() {
     }
 
     // Set store values
-    setMode('simple');
+    setMode('detailed');
     setPurposeCategory(selectedCategory);
     setSituation(selectedSituation);
     setAdditionalInfo({ keyPoints });

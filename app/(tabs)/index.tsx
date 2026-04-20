@@ -18,20 +18,19 @@ type ActionCard = {
   title: string;
   subtitle: string;
   description: string;
-  icon: 'paperplane.fill' | 'slider.horizontal.3' | 'doc.text.fill';
-  route: '/create/simple' | '/create/detailed' | '/templates';
+  icon: 'wand.and.stars' | 'arrow.uturn.left' | 'slider.horizontal.3' | 'doc.text.fill';
+  route: '/create/rewrite' | '/create/reply' | '/create/detailed' | '/templates';
   accentColor: string;
   accentBg: string;
   recommended?: boolean;
 };
 
 const TIPS = [
-  { icon: 'lightbulb.fill' as const, text: '「かんたん作成」なら目的を選ぶだけで30秒でメール完成', route: '/create/simple' },
+  { icon: 'wand.and.stars' as const, text: '「リライト」なら書いた下書きをAIが自然なビジネスメールに整えます', route: '/create/rewrite' },
+  { icon: 'arrow.uturn.left' as const, text: '「返信生成」はスクショを貼り付けるだけで返信文を自動作成', route: '/create/reply' },
   { icon: 'person.fill' as const, text: '連絡先に相手の関係性を登録すると敬語レベルを自動調整', route: '/(tabs)/contacts' },
   { icon: 'clock.arrow.circlepath' as const, text: '履歴からワンタップで過去のメールを再利用できます', route: '/(tabs)/history' },
-  { icon: 'tray.full.fill' as const, text: 'よく使う設定はプリセットに保存して次回からワンタップで呼び出し', route: '/settings/presets' },
   { icon: 'brain.head.profile' as const, text: '学習データ管理であなたの文体をAIが学習し、より自然なメールに', route: '/settings/learning-data' },
-  { icon: 'arrow.triangle.2.circlepath' as const, text: '生成結果がイメージと違っても再生成ボタンで何度でも作り直せます', route: '/create/simple' },
 ];
 
 export default function HomeScreen() {
@@ -44,23 +43,33 @@ export default function HomeScreen() {
 
   const ACTION_CARDS: ActionCard[] = [
     {
-      title: 'かんたん作成',
-      subtitle: '最短30秒',
-      description: '目的を選ぶだけでAIが最適なメールを作成',
-      icon: 'paperplane.fill',
-      route: '/create/simple',
+      title: 'リライト',
+      subtitle: '下書きをAIで整える',
+      description: '書いた文章を敬語・ビジネスマナーに合わせて磨き上げ',
+      icon: 'wand.and.stars',
+      route: '/create/rewrite',
       accentColor: colors.accent1,
       accentBg: colors.accent1 + '15',
+      recommended: true,
+    },
+    {
+      title: '返信生成',
+      subtitle: 'スクショから返信',
+      description: '受け取ったメールのスクショを貼るだけで返信を自動作成',
+      icon: 'arrow.uturn.left',
+      route: '/create/reply',
+      accentColor: colors.accent2,
+      accentBg: colors.accent2 + '15',
+      recommended: true,
     },
     {
       title: 'こだわり作成',
       subtitle: '細かくカスタマイズ',
-      description: '相手・トーン・長さを指定して理想のメールに',
+      description: '相手・トーン・長さを指定してゼロからメール作成',
       icon: 'slider.horizontal.3',
       route: '/create/detailed',
-      accentColor: colors.accent2,
-      accentBg: colors.accent2 + '15',
-      recommended: true,
+      accentColor: colors.accent3,
+      accentBg: colors.accent3 + '15',
     },
     {
       title: 'テンプレートから作成',
@@ -68,9 +77,8 @@ export default function HomeScreen() {
       description: 'シーン別テンプレートで効率的にメール作成',
       icon: 'doc.text.fill',
       route: '/templates',
-      accentColor: colors.accent3,
-      accentBg: colors.accent3 + '15',
-      recommended: true,
+      accentColor: colors.tint,
+      accentBg: colors.tint + '15',
     },
   ];
 

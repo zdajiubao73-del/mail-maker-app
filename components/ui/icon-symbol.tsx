@@ -54,6 +54,13 @@ const MAPPING = {
   'star.fill': 'star',
   'checkmark.circle.fill': 'check-circle',
 
+  // Rewrite / Reply
+  'wand.and.stars': 'auto-fix-high',
+  'arrow.uturn.left': 'reply',
+  'photo': 'image',
+  'camera.fill': 'camera-alt',
+  'text.bubble.fill': 'chat',
+
   // Misc
   'xmark': 'close',
   'arrow.triangle.2.circlepath': 'sync',

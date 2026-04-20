@@ -24,7 +24,7 @@ import { useMailStore } from '@/store/use-mail-store';
 import { useAuthStore } from '@/store/use-auth-store';
 import { usePresetStore } from '@/store/use-preset-store';
 import { Colors } from '@/constants/theme';
-import { generateMail } from '@/lib/mail-generator';
+import { generateMail, rewriteMail, generateReply } from '@/lib/mail-generator';
 import { sendMail } from '@/lib/mail-sender';
 import { useLearningStore } from '@/store/use-learning-store';
 import { buildLearningContext } from '@/lib/learning-analyzer';
@@ -71,11 +71,19 @@ export default function PreviewScreen() {
     setGeneratedMail,
     setIsGenerating,
     isGenerating,
+    mode,
     recipient,
     purposeCategory,
     situation,
     tone,
     additionalInfo,
+    rewriteDraft,
+    rewriteHonorifics,
+    rewriteAtmosphere,
+    rewriteMailLength,
+    replyReceivedText,
+    replyIntent,
+    replyHonorifics,
     addHistory,
     resetCreation,
     templateId,
@@ -232,26 +240,49 @@ export default function PreviewScreen() {
 
   // Regenerate mail with optional instruction
   const executeRegenerate = useCallback(async (instruction?: string) => {
-    if (!recipient || !purposeCategory || !situation) {
-      Alert.alert('設定不足', 'メール生成に必要な設定が不足しています');
-      return;
-    }
-
     try {
       setIsGenerating(true);
       const { profile: learningProfile, learningEnabled } = useLearningStore.getState();
-      const learningContext = learningEnabled && learningProfile ? buildLearningContext(learningProfile) : undefined;
-      const mail = await generateMail({
-        recipient,
-        purposeCategory,
-        situation,
-        tone,
-        additionalInfo,
-        templateId: templateId ?? undefined,
-        learningContext,
-        regenerationInstruction: instruction || undefined,
-        previousMail: instruction ? { subject: editedSubject, body: stripSignature(editedBody, learningContext?.signature) } : undefined,
-      });
+      const signature = learningEnabled && learningProfile?.preferences?.signature ? learningProfile.preferences.signature : undefined;
+
+      let mail;
+      if (mode === 'rewrite') {
+        mail = await rewriteMail({
+          draftText: rewriteDraft,
+          honorificsLevel: rewriteHonorifics,
+          atmosphere: rewriteAtmosphere,
+          mailLength: rewriteMailLength,
+          signature,
+          regenerationInstruction: instruction || undefined,
+          previousMail: instruction ? { subject: editedSubject, body: editedBody } : undefined,
+        });
+      } else if (mode === 'reply') {
+        mail = await generateReply({
+          receivedMailText: replyReceivedText,
+          replyIntent,
+          honorificsLevel: replyHonorifics,
+          signature,
+          regenerationInstruction: instruction || undefined,
+          previousMail: instruction ? { subject: editedSubject, body: editedBody } : undefined,
+        });
+      } else {
+        if (!recipient || !purposeCategory || !situation) {
+          Alert.alert('設定不足', 'メール生成に必要な設定が不足しています');
+          return;
+        }
+        const learningContext = learningEnabled && learningProfile ? buildLearningContext(learningProfile) : undefined;
+        mail = await generateMail({
+          recipient,
+          purposeCategory,
+          situation,
+          tone,
+          additionalInfo,
+          templateId: templateId ?? undefined,
+          learningContext,
+          regenerationInstruction: instruction || undefined,
+          previousMail: instruction ? { subject: editedSubject, body: stripSignature(editedBody, learningContext?.signature) } : undefined,
+        });
+      }
 
       // Save current edits to snapshot and truncate forward history
       setGenerationHistory((prev) => {

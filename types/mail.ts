@@ -128,5 +128,28 @@ export type AttachmentMeta = {
   size: number;
 };
 
+/** メールリライトリクエスト */
+export type RewriteRequest = {
+  draftText: string;
+  honorificsLevel?: HonorificsLevel;
+  atmosphere?: Atmosphere;
+  mailLength?: MailLength;
+  signature?: string;
+  regenerationInstruction?: string;
+  previousMail?: { subject: string; body: string };
+};
+
+/** 返信生成リクエスト */
+export type ReplyRequest = {
+  receivedMailText: string;
+  replyIntent: string;
+  honorificsLevel?: HonorificsLevel;
+  atmosphere?: Atmosphere;
+  mailLength?: MailLength;
+  signature?: string;
+  regenerationInstruction?: string;
+  previousMail?: { subject: string; body: string };
+};
+
 /** 生成モード */
-export type GenerationMode = 'simple' | 'detailed' | 'template';
+export type GenerationMode = 'detailed' | 'template' | 'rewrite' | 'reply';

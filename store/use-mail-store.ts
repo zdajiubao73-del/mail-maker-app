@@ -10,6 +10,7 @@ import type {
   Attachment,
   GenerationMode,
 } from '@/types/mail';
+import type { HonorificsLevel, Atmosphere, MailLength } from '@/types/mail';
 import { zustandStorage } from '@/lib/storage';
 
 type MailState = {
@@ -33,6 +34,15 @@ type MailState = {
 
   // Attachments
   attachments: Attachment[];
+
+  // Rewrite / Reply context
+  rewriteDraft: string;
+  rewriteHonorifics: HonorificsLevel;
+  rewriteAtmosphere: Atmosphere;
+  rewriteMailLength: MailLength;
+  replyReceivedText: string;
+  replyIntent: string;
+  replyHonorifics: HonorificsLevel;
 
   // Generated result
   generatedMail: GeneratedMail | null;
@@ -58,6 +68,13 @@ type MailState = {
   addAttachment: (attachment: Attachment) => void;
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
+  setRewriteDraft: (draft: string) => void;
+  setRewriteHonorifics: (level: HonorificsLevel) => void;
+  setRewriteAtmosphere: (atmosphere: Atmosphere) => void;
+  setRewriteMailLength: (length: MailLength) => void;
+  setReplyReceivedText: (text: string) => void;
+  setReplyIntent: (intent: string) => void;
+  setReplyHonorifics: (level: HonorificsLevel) => void;
   setGeneratedMail: (mail: GeneratedMail | null) => void;
   setIsGenerating: (v: boolean) => void;
   addHistory: (item: MailHistoryItem) => void;
@@ -82,7 +99,7 @@ const DEFAULT_ADDITIONAL_INFO: AdditionalInfo = {
 };
 
 const INITIAL_CREATION_STATE = {
-  mode: 'simple' as GenerationMode,
+  mode: 'detailed' as GenerationMode,
   recipient: null,
   purposeCategory: null,
   situation: '',
@@ -97,6 +114,13 @@ const INITIAL_CREATION_STATE = {
   attachments: [],
   generatedMail: null,
   isGenerating: false,
+  rewriteDraft: '',
+  rewriteHonorifics: '丁寧' as HonorificsLevel,
+  rewriteAtmosphere: '落ち着いた' as Atmosphere,
+  rewriteMailLength: '標準' as MailLength,
+  replyReceivedText: '',
+  replyIntent: '',
+  replyHonorifics: '丁寧' as HonorificsLevel,
 };
 
 export const useMailStore = create<MailState>()(
@@ -161,6 +185,14 @@ export const useMailStore = create<MailState>()(
         })),
 
       clearAttachments: () => set({ attachments: [] }),
+
+      setRewriteDraft: (draft) => set({ rewriteDraft: draft }),
+      setRewriteHonorifics: (level) => set({ rewriteHonorifics: level }),
+      setRewriteAtmosphere: (atmosphere) => set({ rewriteAtmosphere: atmosphere }),
+      setRewriteMailLength: (length) => set({ rewriteMailLength: length }),
+      setReplyReceivedText: (text) => set({ replyReceivedText: text }),
+      setReplyIntent: (intent) => set({ replyIntent: intent }),
+      setReplyHonorifics: (level) => set({ replyHonorifics: level }),
 
       setGeneratedMail: (mail) => set({ generatedMail: mail }),
 
