@@ -48,13 +48,15 @@ const RELATIONSHIPS: Relationship[] = [
   '取引先',
   '顧客',
   '教授',
+  '先生',
   '先輩',
   '友人',
   '家族',
   '初対面',
+  'その他',
 ];
 
-const SCOPES: Scope[] = ['社内', '社外', '個人間'];
+const SCOPES: Scope[] = ['社内', '社外', '個人間', 'その他'];
 
 const POSITION_LEVELS: PositionLevel[] = [
   '経営層',

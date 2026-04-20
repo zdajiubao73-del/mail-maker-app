@@ -31,6 +31,17 @@ import { buildLearningContext } from '@/lib/learning-analyzer';
 import { isValidEmail } from '@/lib/validation';
 import type { MailHistoryItem, Attachment, GeneratedMail } from '@/types';
 
+/** 再生成時に body 末尾の署名を除去して AI に渡すクリーンな本文を返す */
+function stripSignature(body: string, signature?: string): string {
+  if (!signature) return body;
+  const trimmedSig = signature.trim();
+  const trimmedBody = body.trimEnd();
+  if (trimmedBody.endsWith(trimmedSig)) {
+    return trimmedBody.slice(0, trimmedBody.length - trimmedSig.length).trimEnd();
+  }
+  return body;
+}
+
 type GenerationSnapshot = {
   generatedMail: GeneratedMail;
   editedSubject: string;
@@ -239,7 +250,7 @@ export default function PreviewScreen() {
         templateId: templateId ?? undefined,
         learningContext,
         regenerationInstruction: instruction || undefined,
-        previousMail: instruction ? { subject: editedSubject, body: editedBody } : undefined,
+        previousMail: instruction ? { subject: editedSubject, body: stripSignature(editedBody, learningContext?.signature) } : undefined,
       });
 
       // Save current edits to snapshot and truncate forward history

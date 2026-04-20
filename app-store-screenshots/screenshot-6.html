@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>メールAI - App Store Screenshot 6</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 430px; height: 932px; overflow: hidden; }
+body {
+  font-family: -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  background: linear-gradient(168deg, #1e0a3c 0%, #4c1d95 50%, #7c3aed 100%);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 48px 28px 0; position: relative;
+}
+.c1, .c2, .c3 { position: absolute; border-radius: 50%; pointer-events: none; }
+.c1 { width: 360px; height: 360px; background: rgba(255,255,255,0.05); top: -120px; right: -100px; }
+.c2 { width: 220px; height: 220px; background: rgba(255,255,255,0.04); bottom: 80px; left: -90px; }
+.c3 { width: 140px; height: 140px; background: rgba(124,58,237,0.25); top: 290px; left: -20px; }
+
+.badge {
+  background: #fff; color: #4c1d95; font-size: 14px; font-weight: 800;
+  padding: 9px 22px; border-radius: 999px; margin-bottom: 26px;
+  position: relative; align-self: flex-start;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.22); letter-spacing: .02em; white-space: nowrap;
+}
+.badge::after {
+  content: ''; position: absolute; bottom: -9px; left: 22px;
+  width: 0; height: 0;
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 10px solid #fff;
+}
+
+.text-section { width: 100%; color: white; margin-bottom: 20px; }
+.small-label { font-size: 13px; font-weight: 600; opacity: 0.65; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+.hl { font-size: 48px; font-weight: 900; line-height: 1.12; letter-spacing: -0.02em; }
+.hl-accent { color: #fbbf24; font-size: 56px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.08; display: block; }
+.desc { margin-top: 14px; font-size: 15px; font-weight: 500; opacity: 0.82; line-height: 1.65; }
+
+.phone-wrap { flex: 1; display: flex; align-items: flex-end; justify-content: center; }
+.phone {
+  width: 242px; height: 528px;
+  background: #0c0c0c; border-radius: 50px; padding: 13px;
+  position: relative; flex-shrink: 0;
+  box-shadow: 0 0 0 1.5px #2e2e2e, 0 0 0 3px #111, 0 30px 80px rgba(0,0,0,0.55), 0 0 40px rgba(124,58,237,0.2);
+}
+.phone-screen { width: 100%; height: 100%; background: #f5f5f7; border-radius: 38px; overflow: hidden; position: relative; }
+.di { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 88px; height: 26px; background: #0c0c0c; border-radius: 13px; z-index: 10; }
+
+.ah { background: #4c1d95; padding: 46px 14px 10px; text-align: center; }
+.ah-t { color: white; font-size: 13px; font-weight: 800; }
+.ah-s { color: rgba(255,255,255,0.6); font-size: 9px; margin-top: 3px; }
+
+.ab { padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+
+.ai-badge {
+  background: #f3e8ff; border-radius: 8px; padding: 7px 10px;
+  display: flex; align-items: center; gap: 6px; border: 1.5px solid #d8b4fe;
+}
+.ai-badge span { font-size: 10px; font-weight: 800; color: #6d28d9; }
+
+.setting-card {
+  background: white; border-radius: 10px; padding: 9px 11px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.07); border: 1px solid #f3f4f6;
+}
+.s-title { font-size: 9px; font-weight: 700; color: #6b7280; margin-bottom: 6px; letter-spacing: .05em; }
+.s-label { font-size: 10px; font-weight: 700; color: #1f2937; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+.s-val { font-size: 9px; font-weight: 700; color: #4c1d95; }
+
+.slider-track {
+  height: 6px; background: #ede9fe; border-radius: 3px;
+  position: relative; margin-bottom: 4px;
+}
+.slider-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+.slider-thumb {
+  width: 14px; height: 14px; background: white; border-radius: 50%;
+  border: 2px solid #7c3aed; position: absolute; top: -4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.slider-labels { display: flex; justify-content: space-between; font-size: 7px; color: #9ca3af; }
+
+.seg-row { display: flex; gap: 4px; }
+.seg { flex: 1; text-align: center; font-size: 9px; font-weight: 700; padding: 5px 2px; border-radius: 6px; }
+.seg.active { background: #4c1d95; color: white; box-shadow: 0 1px 4px rgba(76,29,149,0.3); }
+.seg.inactive { background: #f5f3ff; color: #6d28d9; }
+
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 0; }
+.toggle-label { font-size: 10px; font-weight: 600; color: #374151; }
+.toggle { width: 28px; height: 16px; background: #7c3aed; border-radius: 8px; position: relative; flex-shrink: 0; }
+.toggle-thumb { width: 12px; height: 12px; background: white; border-radius: 50%; position: absolute; right: 2px; top: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.toggle.off { background: #e5e7eb; }
+.toggle.off .toggle-thumb { left: 2px; right: auto; }
+
+.learn-btn {
+  background: linear-gradient(135deg, #4c1d95, #7c3aed);
+  border-radius: 12px; padding: 11px; text-align: center;
+  box-shadow: 0 4px 12px rgba(76,29,149,0.4);
+}
+.learn-btn-t { color: white; font-size: 12px; font-weight: 800; }
+.learn-btn-s { color: rgba(255,255,255,0.7); font-size: 8px; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="c1"></div><div class="c2"></div><div class="c3"></div>
+
+<div class="badge">🤖 あなただけのAIに！</div>
+
+<div class="text-section">
+  <div class="small-label">細かく指示できる</div>
+  <div class="hl">AIを自分好みに</div>
+  <span class="hl-accent">カスタマイズ</span>
+  <div class="desc">敬語レベル・文体・長さを細かく設定。<br>使えば使うほど自分らしい文章に。</div>
+</div>
+
+<div class="phone-wrap">
+  <div class="phone">
+    <div class="phone-screen">
+      <img src="screen-6.PNG" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:38px;" alt="アプリ画面">
+    </div>
+  </div>
+</div>
+</body>
+</html>

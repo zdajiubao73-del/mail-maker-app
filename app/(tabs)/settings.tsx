@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import {
   Linking,
   ScrollView,
@@ -101,7 +102,7 @@ export default function SettingsScreen() {
           label: 'バージョン',
           icon: 'info.circle.fill',
           iconBg: '#94A3B8',
-          value: '1.0.0',
+          value: Constants.expoConfig?.version ?? '1.0.0',
         },
       ],
     },

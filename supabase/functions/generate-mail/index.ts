@@ -493,14 +493,6 @@ ${scenarioGuidance}`;
 文頭テキスト: ${sanitizeUserInput(openingText)}`;
   }
 
-  // 署名（top-level を優先、なければ learningContext）
-  const signature = req.signature ?? req.learningContext?.signature;
-  if (signature) {
-    prompt += `\n\n## 署名（必須）
-以下の署名をメール本文の末尾にそのまま使用してください。署名の内容は変更しないでください。
-署名: ${sanitizeUserInput(signature)}`;
-  }
-
   // learningContext がある場合
   if (req.learningContext) {
     const lc = req.learningContext;

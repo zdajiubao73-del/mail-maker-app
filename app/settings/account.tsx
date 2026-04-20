@@ -120,6 +120,27 @@ export default function AccountScreen() {
 
   // Microsoft OAuth レスポンスを処理
   useEffect(() => {
+    if (msResponse?.type === 'error') {
+      const errorCode = msResponse.params?.error;
+      const errorDesc = msResponse.params?.error_description ?? '';
+
+      if (
+        errorCode === 'access_denied' ||
+        errorDesc.includes('AADSTS65001') ||
+        errorDesc.includes('AADSTS90094') ||
+        errorDesc.includes('admin')
+      ) {
+        Alert.alert(
+          '連携できませんでした',
+          '大学や会社のアカウントは、IT管理者がアプリへのアクセスを許可していない場合があります。\n\n個人の Outlook / Hotmail アカウントであれば連携できます。',
+          [{ text: 'OK' }],
+        );
+      } else if (errorCode !== 'access_denied') {
+        Alert.alert('エラー', 'Outlook連携に失敗しました。しばらくしてから再度お試しください。');
+      }
+      return;
+    }
+
     if (msResponse?.type !== 'success') return;
     const { code } = msResponse.params;
     if (!code) return;
@@ -138,7 +159,11 @@ export default function AccountScreen() {
         });
         Alert.alert('連携完了', `Outlookアカウント (${tokens.email}) を連携しました`);
       } catch {
-        Alert.alert('エラー', 'Outlook連携に失敗しました');
+        Alert.alert(
+          '連携できませんでした',
+          '大学や会社のアカウントは、IT管理者がアプリへのアクセスを許可していない場合があります。\n\n個人の Outlook / Hotmail アカウントであれば連携できます。',
+          [{ text: 'OK' }],
+        );
       }
     })();
   }, [msResponse]); // eslint-disable-line react-hooks/exhaustive-deps

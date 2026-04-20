@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><title>iPad ipad-6.html</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1024px; height: 1366px; overflow: hidden; }
+body {
+  font-family: -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  background: linear-gradient(168deg, #1e0a3c 0%, #4c1d95 50%, #7c3aed 100%);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 60px 56px 0; position: relative;
+}
+.c1,.c2 { position:absolute;border-radius:50%;pointer-events:none; }
+.c1 { width:560px;height:560px;background:rgba(255,255,255,0.05);top:-160px;right:-140px; }
+.c2 { width:320px;height:320px;background:rgba(255,255,255,0.04);bottom:80px;left:-100px; }
+
+.badge {
+  background:#fff;color:#4c1d95;font-size:19px;font-weight:800;
+  padding:11px 28px;border-radius:999px;margin-bottom:30px;
+  position:relative;align-self:flex-start;
+  box-shadow:0 5px 18px rgba(0,0,0,0.22);letter-spacing:.02em;white-space:nowrap;
+}
+.badge::after {
+  content:'';position:absolute;bottom:-10px;left:26px;
+  width:0;height:0;border-left:7px solid transparent;
+  border-right:7px solid transparent;border-top:11px solid #fff;
+}
+.text-section { width:100%;color:white;margin-bottom:24px; }
+.small-label { font-size:16px;font-weight:600;opacity:.65;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px; }
+.hl { font-size:80px;font-weight:900;line-height:1.1;letter-spacing:-0.02em; }
+.hl-accent { color:#fbbf24;font-size:92px;font-weight:900;letter-spacing:-0.03em;line-height:1.08;display:block; }
+.desc { margin-top:16px;font-size:22px;font-weight:500;opacity:.82;line-height:1.65; }
+
+/* iPad mockup */
+.ipad-wrap { flex:1;display:flex;align-items:flex-end;justify-content:center; }
+.ipad {
+  width: 548px;
+  height: 732px;
+  background: #111;
+  border-radius: 32px;
+  padding: 14px;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1.5px #2a2a2a, 0 0 0 3px #0a0a0a,
+    0 30px 80px rgba(0,0,0,0.55), 0 0 50px rgba(124,58,237,0.25);
+}
+.ipad-camera {
+  position: absolute;
+  top: 7px; left: 50%;
+  transform: translateX(-50%);
+  width: 9px; height: 9px;
+  background: #2a2a2a;
+  border-radius: 50%;
+  z-index: 10;
+}
+.ipad-screen {
+  width: 100%; height: 100%;
+  background: #f0f2f5;
+  border-radius: 20px;
+  overflow: hidden;
+}
+img { width:100%;height:100%;object-fit:cover;object-position:top; }
+</style></head>
+<body>
+<div class="c1"></div><div class="c2"></div>
+<div class="badge">🤖 あなただけのAIに！</div>
+<div class="text-section">
+  <div class="small-label">細かく指示できる</div>
+  <div class="hl">AIを自分好みに</div>
+  <span class="hl-accent">カスタマイズ</span>
+
+  <div class="desc">敬語レベル・文体・長さを細かく設定。<br>使えば使うほど自分らしい文章に。</div>
+</div>
+<div class="ipad-wrap">
+  <div class="ipad">
+    <div class="ipad-camera"></div>
+    <div class="ipad-screen">
+      <img src="ipad-screen.PNG" alt="アプリ画面">
+    </div>
+  </div>
+</div>
+</body></html>

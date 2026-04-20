@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "メールメーカー",
+  "NSCameraUsageDescription": "プロフィール写真を撮影するためにカメラへのアクセスが必要です。",
+  "NSPhotoLibraryUsageDescription": "写真を添付するために写真ライブラリへのアクセスが必要です。",
+  "NSMicrophoneUsageDescription": "音声入力のためにマイクへのアクセスが必要です。"
+}

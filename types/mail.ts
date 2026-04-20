@@ -8,13 +8,15 @@ export type Relationship =
   | '取引先'
   | '顧客'
   | '教授'
+  | '先生'
   | '先輩'
   | '友人'
   | '家族'
-  | '初対面';
+  | '初対面'
+  | 'その他';
 
 /** メールの範囲 */
-export type Scope = '社内' | '社外' | '個人間';
+export type Scope = '社内' | '社外' | '個人間' | 'その他';
 
 /** 役職レベル */
 export type PositionLevel = '経営層' | '管理職' | '一般社員' | '学生' | 'その他';

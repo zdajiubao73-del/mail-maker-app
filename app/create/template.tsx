@@ -32,7 +32,7 @@ import { useResponsivePadding, useContentMaxWidth } from '@/hooks/use-responsive
 import type { Contact, Relationship } from '@/types';
 
 const RELATIONSHIPS: Relationship[] = [
-  '上司', '同僚', '部下', '取引先', '顧客', '教授', '先輩', '友人', '家族', '初対面',
+  '上司', '同僚', '部下', '取引先', '顧客', '教授', '先生', '先輩', '友人', '家族', '初対面', 'その他',
 ];
 
 export default function TemplateCreateScreen() {

@@ -98,7 +98,11 @@ async function generateMailViaAPI(
   let body: string = data.body;
   const signature = request.signature ?? request.learningContext?.signature;
   if (signature) {
-    body += `\n\n${signature}`;
+    const trimmedSignature = signature.trim();
+    // すでに末尾に署名が含まれている場合は追加しない（再生成時の二重追加を防ぐ）
+    if (!body.trimEnd().endsWith(trimmedSignature)) {
+      body += `\n\n${signature}`;
+    }
   }
 
   return {

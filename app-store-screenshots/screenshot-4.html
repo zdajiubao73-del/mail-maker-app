@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>メールAI - App Store Screenshot 4</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 430px; height: 932px; overflow: hidden; }
+body {
+  font-family: -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  background: linear-gradient(168deg, #0c3448 0%, #0369a1 50%, #0ea5e9 100%);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 48px 28px 0; position: relative;
+}
+.c1, .c2, .c3 { position: absolute; border-radius: 50%; pointer-events: none; }
+.c1 { width: 360px; height: 360px; background: rgba(255,255,255,0.05); top: -110px; left: -110px; }
+.c2 { width: 220px; height: 220px; background: rgba(255,255,255,0.04); bottom: 80px; right: -80px; }
+.c3 { width: 130px; height: 130px; background: rgba(14,165,233,0.2); top: 280px; right: -20px; }
+
+.badge {
+  background: #fff; color: #0369a1; font-size: 14px; font-weight: 800;
+  padding: 9px 22px; border-radius: 999px; margin-bottom: 26px;
+  position: relative; align-self: flex-start;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.22); letter-spacing: .02em; white-space: nowrap;
+}
+.badge::after {
+  content: ''; position: absolute; bottom: -9px; left: 22px;
+  width: 0; height: 0;
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 10px solid #fff;
+}
+
+.text-section { width: 100%; color: white; margin-bottom: 20px; }
+.small-label { font-size: 13px; font-weight: 600; opacity: 0.65; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+.hl { font-size: 48px; font-weight: 900; line-height: 1.12; letter-spacing: -0.02em; }
+.hl-accent { color: #fbbf24; font-size: 56px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.08; display: block; }
+.desc { margin-top: 14px; font-size: 15px; font-weight: 500; opacity: 0.82; line-height: 1.65; }
+
+.phone-wrap { flex: 1; display: flex; align-items: flex-end; justify-content: center; }
+.phone {
+  width: 242px; height: 528px;
+  background: #0c0c0c; border-radius: 50px; padding: 13px;
+  position: relative; flex-shrink: 0;
+  box-shadow: 0 0 0 1.5px #2e2e2e, 0 0 0 3px #111, 0 30px 80px rgba(0,0,0,0.55), 0 0 40px rgba(14,165,233,0.15);
+}
+.phone-screen { width: 100%; height: 100%; background: #f5f5f7; border-radius: 38px; overflow: hidden; position: relative; }
+.di { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 88px; height: 26px; background: #0c0c0c; border-radius: 13px; z-index: 10; }
+
+.ah { background: #0369a1; padding: 46px 14px 10px; text-align: center; }
+.ah-t { color: white; font-size: 13px; font-weight: 800; }
+.ah-s { color: rgba(255,255,255,0.6); font-size: 9px; margin-top: 3px; }
+
+.ab { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+.conn-header {
+  background: #e0f2fe; border-radius: 8px; padding: 7px 10px;
+  display: flex; align-items: center; gap: 6px; border: 1.5px solid #bae6fd;
+}
+.conn-header span { font-size: 10px; font-weight: 800; color: #0369a1; }
+
+.acc-card {
+  background: white; border-radius: 12px; padding: 10px 12px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.07); border: 1px solid #f3f4f6;
+}
+.acc-row { display: flex; align-items: center; gap: 10px; }
+.acc-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.gmail-icon { background: #fef2f2; }
+.outlook-icon { background: #eff6ff; }
+.acc-info { flex: 1; }
+.acc-name { font-size: 11px; font-weight: 700; color: #1f2937; }
+.acc-email { font-size: 9px; color: #6b7280; margin-top: 1px; }
+.acc-status {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 700;
+}
+.connected { color: #059669; }
+.dot-green { width: 6px; height: 6px; background: #10b981; border-radius: 50%; }
+
+.send-card {
+  background: linear-gradient(135deg, #0369a1, #0ea5e9);
+  border-radius: 12px; padding: 13px 12px;
+  box-shadow: 0 5px 15px rgba(3,105,161,0.45);
+}
+.send-card-t { color: white; font-size: 13px; font-weight: 800; text-align: center; }
+.send-card-s { color: rgba(255,255,255,0.72); font-size: 9px; text-align: center; margin-top: 3px; }
+
+.recent-header { font-size: 9px; font-weight: 700; color: #9ca3af; letter-spacing: .06em; }
+.recent-item {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.r-avatar {
+  width: 22px; height: 22px; border-radius: 50%; background: #bfdbfe;
+  font-size: 9px; font-weight: 800; color: #1d4ed8;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.r-name { font-size: 10px; font-weight: 600; color: #374151; }
+.r-sub { font-size: 8px; color: #9ca3af; }
+.r-time { font-size: 8px; color: #9ca3af; margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="c1"></div><div class="c2"></div><div class="c3"></div>
+
+<div class="badge">📧 シームレスな送信体験！</div>
+
+<div class="text-section">
+  <div class="small-label">メール連携対応</div>
+  <div class="hl">GmailもOutlookも</div>
+  <span class="hl-accent">そのまま送信</span>
+  <div class="desc">生成したメールをアプリから直接送信。<br>メールアプリへのコピーペースト不要。</div>
+</div>
+
+<div class="phone-wrap">
+  <div class="phone">
+    <div class="phone-screen">
+      <img src="screen-4.PNG" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:38px;" alt="アプリ画面">
+    </div>
+  </div>
+</div>
+</body>
+</html>

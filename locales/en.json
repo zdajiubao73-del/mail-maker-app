@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Mail Maker",
+  "NSCameraUsageDescription": "Camera access is required to take profile photos.",
+  "NSPhotoLibraryUsageDescription": "Photo library access is required to attach photos.",
+  "NSMicrophoneUsageDescription": "Microphone access is required for voice input."
+}

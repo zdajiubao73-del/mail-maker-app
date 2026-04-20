@@ -7,8 +7,10 @@ export const RELATIONSHIP_TONE_MAP: Record<Relationship, HonorificsLevel> = {
   '取引先': '最敬体',
   '顧客': '最敬体',
   '教授': '最敬体',
+  '先生': '丁寧',
   '先輩': '丁寧',
   '友人': 'カジュアル',
   '家族': 'カジュアル',
   '初対面': '丁寧',
+  'その他': '丁寧',
 };
