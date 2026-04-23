@@ -2,12 +2,14 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   FlatList,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   View,
   ScrollView,
   useColorScheme,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -41,13 +43,19 @@ export default function TemplatesScreen() {
   const isTablet = useIsTablet();
   const contentMaxWidth = useContentMaxWidth();
   const [selectedFilter, setSelectedFilter] = useState<PurposeCategory | 'すべて'>('すべて');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const templates = useMemo(() => {
-    if (selectedFilter === 'すべて') {
-      return getTemplates();
-    }
-    return getTemplatesByCategory(selectedFilter);
-  }, [selectedFilter]);
+    const base = selectedFilter === 'すべて' ? getTemplates() : getTemplatesByCategory(selectedFilter);
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.situation.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q),
+    );
+  }, [selectedFilter, searchQuery]);
 
   const handleTemplatePress = useCallback(
     (template: PromptTemplate) => {
@@ -110,6 +118,28 @@ export default function TemplatesScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {/* Search Bar */}
+      <View style={[styles.searchContainer, { borderBottomColor: colors.border }]}>
+        <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <MaterialIcons name="search" size={20} color={colors.icon} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder={'テンプレートを検索...'}
+            placeholderTextColor={colors.icon}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8} activeOpacity={0.6}>
+              <MaterialIcons name="close" size={18} color={colors.icon} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
         <ScrollView
@@ -166,10 +196,12 @@ export default function TemplatesScreen() {
               <IconSymbol name="doc.text.fill" size={36} color={colors.tint} />
             </View>
             <ThemedText style={styles.emptyTitle}>
-              テンプレートがありません
+              {searchQuery ? '検索結果がありません' : 'テンプレートがありません'}
             </ThemedText>
             <ThemedText style={[styles.emptySubtext, { color: colors.icon }]}>
-              このカテゴリにはテンプレートがまだありません。{'\n'}「すべて」タブから他のテンプレートをご覧ください。
+              {searchQuery
+                ? `「${searchQuery}」に一致するテンプレートが見つかりませんでした。`
+                : 'このカテゴリにはテンプレートがまだありません。\n「すべて」タブから他のテンプレートをご覧ください。'}
             </ThemedText>
           </View>
         }
@@ -181,6 +213,24 @@ export default function TemplatesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
   },
   filterContainer: {
     paddingVertical: 12,

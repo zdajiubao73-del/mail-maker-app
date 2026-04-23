@@ -14,13 +14,14 @@ import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ContactPickerModal } from '@/components/contact-picker-modal';
 import { useMailStore } from '@/store/use-mail-store';
 import { useLearningStore } from '@/store/use-learning-store';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { rewriteMail, MailGenerationError } from '@/lib/mail-generator';
 import { useResponsivePadding, useContentMaxWidth } from '@/hooks/use-responsive';
-import type { HonorificsLevel, Atmosphere, MailLength } from '@/types';
+import type { HonorificsLevel, Atmosphere, MailLength, Contact } from '@/types';
 
 const HONORIFICS: HonorificsLevel[] = ['最敬体', '丁寧', '普通', 'カジュアル'];
 const LENGTHS: MailLength[] = ['短め', '標準', '長め'];
@@ -45,6 +46,7 @@ export default function RewriteScreen() {
     setGeneratedMail,
     setIsGenerating,
     setMode,
+    setRecipientInfo,
     isGenerating,
   } = useMailStore();
 
@@ -54,6 +56,14 @@ export default function RewriteScreen() {
   const [honorifics, setHonorifics] = useState<HonorificsLevel>(rewriteHonorifics);
   const [atmosphere, setAtmosphere] = useState<Atmosphere>(rewriteAtmosphere);
   const [mailLength, setMailLength] = useState<MailLength>(rewriteMailLength);
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
+
+  const handleContactSelected = useCallback((contact: Contact) => {
+    setRecipientName(contact.name);
+    setRecipientEmail(contact.email);
+  }, []);
 
   const handleGenerate = useCallback(async () => {
     const trimmed = draft.trim();
@@ -70,6 +80,7 @@ export default function RewriteScreen() {
     setRewriteHonorifics(honorifics);
     setRewriteAtmosphere(atmosphere);
     setRewriteMailLength(mailLength);
+    setRecipientInfo(recipientName.trim(), recipientEmail.trim());
     setMode('rewrite');
 
     try {
@@ -94,7 +105,7 @@ export default function RewriteScreen() {
     } finally {
       setIsGenerating(false);
     }
-  }, [draft, honorifics, atmosphere, mailLength, setRewriteDraft, setRewriteHonorifics, setRewriteAtmosphere, setRewriteMailLength, setMode, setIsGenerating, setGeneratedMail, router, learningEnabled, learningProfile]);
+  }, [draft, honorifics, atmosphere, mailLength, recipientName, recipientEmail, setRewriteDraft, setRewriteHonorifics, setRewriteAtmosphere, setRewriteMailLength, setRecipientInfo, setMode, setIsGenerating, setGeneratedMail, router, learningEnabled, learningProfile]);
 
   const containerStyle = contentMaxWidth
     ? { maxWidth: contentMaxWidth + 48, alignSelf: 'center' as const, width: '100%' as const }
@@ -112,6 +123,45 @@ export default function RewriteScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Recipient */}
+          <View style={styles.section}>
+            <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
+              送信先（任意）
+            </ThemedText>
+            <View style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <TextInput
+                style={[styles.inputText, { color: colors.text }]}
+                placeholder={'宛名（例: 田中さん）'}
+                placeholderTextColor={colors.textSecondary}
+                value={recipientName}
+                onChangeText={setRecipientName}
+                maxLength={50}
+              />
+            </View>
+            <View style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 8 }]}>
+              <TextInput
+                style={[styles.inputText, { color: colors.text }]}
+                placeholder={'メールアドレス（例: tanaka@example.com）'}
+                placeholderTextColor={colors.textSecondary}
+                value={recipientEmail}
+                onChangeText={setRecipientEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={254}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.contactButton, { borderColor: colors.tint }]}
+              onPress={() => setIsContactPickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={[styles.contactButtonText, { color: colors.tint }]}>
+                連絡先から選択
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
           {/* Draft input */}
           <View style={styles.section}>
             <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
@@ -233,6 +283,11 @@ export default function RewriteScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+      <ContactPickerModal
+        visible={isContactPickerVisible}
+        onClose={() => setIsContactPickerVisible(false)}
+        onSelect={handleContactSelected}
+      />
     </ThemedView>
   );
 }
@@ -278,6 +333,27 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 13,
+    fontWeight: '600',
+  },
+  inputField: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  inputText: {
+    fontSize: 15,
+  },
+  contactButton: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderStyle: 'dashed',
+    marginTop: 8,
+  },
+  contactButtonText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   generateButton: {
