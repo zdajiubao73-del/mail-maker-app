@@ -15,7 +15,11 @@ LogBox.ignoreLogs(['[RevenueCat]']);
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AIConsentModal } from '@/components/ai-consent-modal';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { CelebrationModal } from '@/components/tutorial/celebration-modal';
+import { TutorialOverlay } from '@/components/tutorial/tutorial-overlay';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
+import { useTutorialNavigator } from '@/hooks/use-tutorial-navigator';
+import { useTutorialWatchers } from '@/hooks/use-tutorial-watchers';
 import { initializePurchases, addCustomerInfoListener } from '@/lib/purchases';
 import { usePlanStore } from '@/store/use-plan-store';
 import { useMailStore } from '@/store/use-mail-store';
@@ -25,6 +29,7 @@ import { usePresetStore } from '@/store/use-preset-store';
 import { useLearningStore } from '@/store/use-learning-store';
 import { useOnboardingStore } from '@/store/use-onboarding-store';
 import { useConsentStore } from '@/store/use-consent-store';
+import { useTutorialStore } from '@/store/use-tutorial-store';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -56,6 +61,7 @@ function useHydration() {
       waitForHydration(useLearningStore),
       waitForHydration(useOnboardingStore),
       waitForHydration(useConsentStore),
+      waitForHydration(useTutorialStore),
     ]).then(() => setHydrated(true));
   }, []);
 
@@ -74,6 +80,9 @@ function RootLayout() {
 
   const hasAgreedToAIDataUsage = useConsentStore((s) => s.hasAgreedToAIDataUsage);
   const [showConsentModal, setShowConsentModal] = useState(false);
+
+  useTutorialWatchers();
+  useTutorialNavigator();
 
   useEffect(() => {
     (async () => {
@@ -114,6 +123,28 @@ function RootLayout() {
     }
   }, [hydrated, hasCompletedOnboarding, hasAgreedToAIDataUsage]);
 
+  // インタラクティブチュートリアル起動: オンボーディング+AI同意完了後、新規ユーザーのみ
+  useEffect(() => {
+    if (!hydrated || !hasCompletedOnboarding) return;
+    if (!hasAgreedToAIDataUsage) return;
+    const t = useTutorialStore.getState();
+    if (t.hasCompletedTutorial || t.isPaused) return;
+    if (t.currentStep !== 'idle') return;
+
+    // 既存ユーザー判定: 履歴/メール連携/プリセットいずれかがあればスキップ
+    const hasHistory = useMailStore.getState().history.length > 0;
+    const hasAccounts = useAuthStore.getState().mailAccounts.length > 0;
+    const hasPresets = usePresetStore.getState().presets.length > 0;
+    if (hasHistory || hasAccounts || hasPresets) {
+      t.complete();
+      t.markCelebrationShown();
+      return;
+    }
+
+    t.start();
+    router.replace('/settings/learning-data');
+  }, [hydrated, hasCompletedOnboarding, hasAgreedToAIDataUsage, router]);
+
   if (!hydrated) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -150,6 +181,8 @@ function RootLayout() {
         <Stack.Screen name="settings/presets" options={{ title: 'よく使う文章' }} />
         <Stack.Screen name="settings/learning-data" options={{ title: '学習データ管理' }} />
       </Stack>
+      <TutorialOverlay />
+      <CelebrationModal />
       <StatusBar style="auto" />
     </ThemeProvider>
     </ErrorBoundary>

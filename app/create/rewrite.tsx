@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -15,17 +15,20 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ContactPickerModal } from '@/components/contact-picker-modal';
+import { LearningPreferencesPanel } from '@/components/learning-preferences-panel';
 import { useMailStore } from '@/store/use-mail-store';
 import { useLearningStore } from '@/store/use-learning-store';
+import { usePlanStore } from '@/store/use-plan-store';
 import { Colors } from '@/constants/theme';
+import { PREMIUM_MONTHLY_LIMIT } from '@/constants/plan';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { rewriteMail, MailGenerationError } from '@/lib/mail-generator';
 import { useResponsivePadding, useContentMaxWidth } from '@/hooks/use-responsive';
-import type { HonorificsLevel, Atmosphere, MailLength, Contact } from '@/types';
+import { useRegisterTutorialTarget } from '@/hooks/use-tutorial-target';
+import type { HonorificsLevel, MailLength, Contact } from '@/types';
 
 const HONORIFICS: HonorificsLevel[] = ['最敬体', '丁寧', '普通', 'カジュアル'];
 const LENGTHS: MailLength[] = ['短め', '標準', '長め'];
-const ATMOSPHERES: Atmosphere[] = ['堅い', '落ち着いた', '親しみやすい', '明るい'];
 
 export default function RewriteScreen() {
   const router = useRouter();
@@ -37,11 +40,9 @@ export default function RewriteScreen() {
   const {
     rewriteDraft,
     rewriteHonorifics,
-    rewriteAtmosphere,
     rewriteMailLength,
     setRewriteDraft,
     setRewriteHonorifics,
-    setRewriteAtmosphere,
     setRewriteMailLength,
     setGeneratedMail,
     setIsGenerating,
@@ -51,14 +52,17 @@ export default function RewriteScreen() {
   } = useMailStore();
 
   const learningProfile = useLearningStore((s) => s.profile);
-  const learningEnabled = useLearningStore((s) => s.learningEnabled);
   const [draft, setDraft] = useState(rewriteDraft);
   const [honorifics, setHonorifics] = useState<HonorificsLevel>(rewriteHonorifics);
-  const [atmosphere, setAtmosphere] = useState<Atmosphere>(rewriteAtmosphere);
   const [mailLength, setMailLength] = useState<MailLength>(rewriteMailLength);
   const [recipientName, setRecipientName] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
+
+  const draftInputRef = useRef<View>(null);
+  const generateButtonRef = useRef<View>(null);
+  useRegisterTutorialTarget('rewrite-draft', draftInputRef, { borderRadius: 12 });
+  useRegisterTutorialTarget('rewrite-generate', generateButtonRef, { borderRadius: 12 });
 
   const handleContactSelected = useCallback((contact: Contact) => {
     setRecipientName(contact.name);
@@ -76,26 +80,54 @@ export default function RewriteScreen() {
       return;
     }
 
+    const planState = usePlanStore.getState();
+    if (!planState.canGenerate()) {
+      const limit = planState.getMonthlyLimit();
+      if (planState.isSubscribed()) {
+        Alert.alert('生成上限に達しました', `今月の生成上限（${limit}回）に達しました。来月になると再度ご利用いただけます。`);
+      } else {
+        Alert.alert(
+          '生成上限に達しました',
+          `無料プランの今月の生成上限（${limit}回）に達しました。プレミアムプランにアップグレードすると、月${PREMIUM_MONTHLY_LIMIT}回まで生成できます。`,
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: 'プランを見る', onPress: () => router.push('/settings/plan') },
+          ],
+        );
+      }
+      return;
+    }
+
     setRewriteDraft(trimmed);
     setRewriteHonorifics(honorifics);
-    setRewriteAtmosphere(atmosphere);
     setRewriteMailLength(mailLength);
     setRecipientInfo(recipientName.trim(), recipientEmail.trim());
     setMode('rewrite');
 
     try {
       setIsGenerating(true);
-      const signature = learningEnabled && learningProfile?.preferences?.signature
-        ? learningProfile.preferences.signature
+      // 学習データ画面の文体設定（署名/文体の指示/文頭定型文）は
+      // 各項目のON/OFFトグル状態を尊重して反映する
+      const prefs = learningProfile?.preferences;
+      const signature = prefs?.signatureEnabled !== false
+        ? (prefs?.signature?.trim() || undefined)
+        : undefined;
+      const writingStyleNotes = prefs?.writingStyleEnabled !== false
+        ? (prefs?.writingStyleNotes?.trim() || undefined)
+        : undefined;
+      const openingText = prefs?.openingTextEnabled !== false
+        ? (prefs?.openingText?.trim() || undefined)
         : undefined;
       const mail = await rewriteMail({
         draftText: trimmed,
         honorificsLevel: honorifics,
-        atmosphere,
         mailLength,
         signature,
+        writingStyleNotes,
+        openingText,
       });
       setGeneratedMail(mail);
+      usePlanStore.getState().incrementGenerationCount();
       router.push('/preview');
     } catch (err) {
       const message = err instanceof MailGenerationError
@@ -105,7 +137,7 @@ export default function RewriteScreen() {
     } finally {
       setIsGenerating(false);
     }
-  }, [draft, honorifics, atmosphere, mailLength, recipientName, recipientEmail, setRewriteDraft, setRewriteHonorifics, setRewriteAtmosphere, setRewriteMailLength, setRecipientInfo, setMode, setIsGenerating, setGeneratedMail, router, learningEnabled, learningProfile]);
+  }, [draft, honorifics, mailLength, recipientName, recipientEmail, setRewriteDraft, setRewriteHonorifics, setRewriteMailLength, setRecipientInfo, setMode, setIsGenerating, setGeneratedMail, router, learningProfile]);
 
   const containerStyle = contentMaxWidth
     ? { maxWidth: contentMaxWidth + 48, alignSelf: 'center' as const, width: '100%' as const }
@@ -167,8 +199,12 @@ export default function RewriteScreen() {
             <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
               下書き
             </ThemedText>
-            <View style={[styles.textAreaContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View
+              ref={draftInputRef}
+              style={[styles.textAreaContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
               <TextInput
+                testID="tut-rewrite-draft"
                 style={[styles.textArea, { color: colors.text }]}
                 multiline
                 placeholder={'送りたいことをざっくり書いてください。箇条書きでもOK。\n\n例①（上司へ）\n有給を来週月曜に取りたい\n理由は私用\n\n例②（取引先へ）\n提案書を送ったので確認してほしい\n来週中に返事がほしい\n急ぎではないけど早めだと助かる\n\n例③（教授へ）\n卒論の締め切りに間に合わなそう\n1週間延ばしてもらえないか相談したい'}
@@ -237,34 +273,18 @@ export default function RewriteScreen() {
             </View>
           </View>
 
-          {/* Atmosphere */}
+          {/* Learning preferences */}
           <View style={styles.section}>
             <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
-              雰囲気
+              学習データの反映
             </ThemedText>
-            <View style={styles.chipRow}>
-              {ATMOSPHERES.map((a) => (
-                <TouchableOpacity
-                  key={a}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: atmosphere === a ? colors.tint : colors.surface,
-                      borderColor: atmosphere === a ? colors.tint : colors.border,
-                    },
-                  ]}
-                  onPress={() => setAtmosphere(a)}
-                >
-                  <ThemedText style={[styles.chipText, { color: atmosphere === a ? '#fff' : colors.text }]}>
-                    {a}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <LearningPreferencesPanel />
           </View>
 
           {/* Generate button */}
           <TouchableOpacity
+            ref={generateButtonRef}
+            testID="tut-rewrite-generate"
             style={[
               styles.generateButton,
               { backgroundColor: isGenerating ? colors.border : colors.tint },

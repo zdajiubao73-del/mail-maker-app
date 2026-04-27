@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
-import { MONTHLY_PRICE, YEARLY_PRICE } from '@/constants/plan';
+import { MONTHLY_PRICE, YEARLY_PRICE, FREE_MONTHLY_LIMIT, PREMIUM_MONTHLY_LIMIT } from '@/constants/plan';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePlanStore } from '@/store/use-plan-store';
 import {
@@ -40,11 +40,9 @@ export default function PaywallScreen({ onClose }: Props) {
   const [trialPeriodText, setTrialPeriodText] = useState('14日間');
 
   const FEATURES = useMemo(() => [
-    'メール生成が無制限',
-    'すべてのテンプレートが使える',
-    '直接メール送信',
-    '優先サポート',
-    '今後の新機能も使い放題',
+    '返信生成（スクショ・テキストから自動返信）',
+    'こだわり作成（相手・トーン・長さを細かく指定）',
+    `月${PREMIUM_MONTHLY_LIMIT}回までメール生成（無料は月${FREE_MONTHLY_LIMIT}回）`,
   ], []);
 
   // トライアル情報は常に表示（両プランに無料トライアル付き）
@@ -146,10 +144,10 @@ export default function PaywallScreen({ onClose }: Props) {
                 <IconSymbol name="clock.fill" size={48} color={colors.danger} />
               </View>
               <ThemedText type="title" style={styles.title}>
-                {currentPlan === 'expired' ? 'サブスクリプション期限切れ' : 'プレミアムに登録'}
+                {currentPlan === 'expired' ? 'サブスクリプション期限切れ' : 'プレミアム機能を解放'}
               </ThemedText>
               <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
-                アプリを利用するにはプレミアムプランへの登録が必要です
+                返信生成・こだわり作成はプレミアムプランで利用できます
               </ThemedText>
             </>
           )}
@@ -158,7 +156,7 @@ export default function PaywallScreen({ onClose }: Props) {
         {/* Features */}
         <View style={[styles.featuresCard, { backgroundColor: cardBg }]}>
           <ThemedText type="defaultSemiBold" style={styles.featuresTitle}>
-            すべての機能が使い放題
+            プレミアムプランで使える機能
           </ThemedText>
           {FEATURES.map((feature) => (
             <View key={feature} style={styles.featureRow}>

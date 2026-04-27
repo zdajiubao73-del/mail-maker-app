@@ -18,11 +18,12 @@ type ActionCard = {
   title: string;
   subtitle: string;
   description: string;
-  icon: 'wand.and.stars' | 'arrow.uturn.left' | 'slider.horizontal.3' | 'doc.text.fill';
+  icon: 'square.and.pencil' | 'arrowshape.turn.up.left.fill' | 'slider.horizontal.3' | 'doc.text.fill';
   route: '/create/rewrite' | '/create/reply' | '/create/detailed' | '/templates';
   accentColor: string;
   accentBg: string;
   recommended?: boolean;
+  premium?: boolean;
 };
 
 const TIPS = [
@@ -46,7 +47,7 @@ export default function HomeScreen() {
       title: 'リライト',
       subtitle: '下書きをAIで整える',
       description: '書いた文章を敬語・ビジネスマナーに合わせて磨き上げ',
-      icon: 'wand.and.stars',
+      icon: 'square.and.pencil',
       route: '/create/rewrite',
       accentColor: colors.accent1,
       accentBg: colors.accent1 + '15',
@@ -56,11 +57,11 @@ export default function HomeScreen() {
       title: '返信生成',
       subtitle: 'スクショから返信',
       description: '受け取ったメールのスクショを貼るだけで返信を自動作成',
-      icon: 'arrow.uturn.left',
+      icon: 'arrowshape.turn.up.left.fill',
       route: '/create/reply',
       accentColor: colors.accent2,
       accentBg: colors.accent2 + '15',
-      recommended: true,
+      premium: true,
     },
     {
       title: 'こだわり作成',
@@ -70,6 +71,7 @@ export default function HomeScreen() {
       route: '/create/detailed',
       accentColor: colors.accent3,
       accentBg: colors.accent3 + '15',
+      premium: true,
     },
     {
       title: 'テンプレートから作成',
@@ -166,6 +168,14 @@ export default function HomeScreen() {
                       <View style={[styles.recommendedBadge, { backgroundColor: colors.danger }]}>
                         <ThemedText style={styles.recommendedText}>
                           おすすめ
+                        </ThemedText>
+                      </View>
+                    )}
+                    {card.premium && (
+                      <View style={[styles.premiumBadge, { backgroundColor: colors.warning }]}>
+                        <IconSymbol name="crown.fill" size={9} color="#FFFFFF" />
+                        <ThemedText style={styles.premiumText}>
+                          PRO
                         </ThemedText>
                       </View>
                     )}
@@ -391,6 +401,20 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   recommendedText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  premiumText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',

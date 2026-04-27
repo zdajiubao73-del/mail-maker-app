@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   Alert,
   FlatList,
@@ -13,8 +13,10 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useRegisterTutorialTarget } from '@/hooks/use-tutorial-target';
 import { usePresetStore } from '@/store/use-preset-store';
 import { useMailStore } from '@/store/use-mail-store';
+import { useTutorialStore } from '@/store/use-tutorial-store';
 import type { Preset } from '@/types/preset';
 
 const PRESET_STEPS = [
@@ -29,11 +31,13 @@ function PresetItem({
   colors,
   onPress,
   onLongPress,
+  isTutorialTarget,
 }: {
   preset: Preset;
   colors: (typeof Colors)['light'];
   onPress: () => void;
   onLongPress: () => void;
+  isTutorialTarget?: boolean;
 }) {
   const tags = [
     preset.relationship ?? null,
@@ -43,8 +47,14 @@ function PresetItem({
 
   const hasContent = !!(preset.subject || preset.body);
 
+  const tutorialRef = useRef<View>(null);
+  // ref は target の場合のみ実体を持つ。非 target 行はノーオペ。
+  useRegisterTutorialTarget('presets-tap-card', tutorialRef, { borderRadius: 14 });
+
   return (
     <TouchableOpacity
+      ref={isTutorialTarget ? tutorialRef : undefined}
+      testID={isTutorialTarget ? 'tut-preset-card' : undefined}
       style={[styles.presetItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
       activeOpacity={0.6}
       onPress={onPress}
@@ -109,6 +119,11 @@ export default function PresetsScreen() {
   const { setMode, setRecipient, setPurposeCategory, setSituation, setTone, setRecipientInfo, setGeneratedMail } = useMailStore();
 
   const handleApplyPreset = useCallback((preset: Preset) => {
+    // チュートリアル: プリセットカードをタップしたら完了
+    const tutorial = useTutorialStore.getState();
+    if (tutorial.currentStep === 'presets-tap-card') {
+      tutorial.advance('presets-tap-card');
+    }
     setMode('detailed');
     if (preset.relationship && preset.scope && preset.positionLevel) {
       setRecipient({
@@ -162,12 +177,13 @@ export default function PresetsScreen() {
       <FlatList
         data={presets}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <PresetItem
             preset={item}
             colors={colors}
             onPress={() => handleApplyPreset(item)}
             onLongPress={() => handleDeletePreset(item)}
+            isTutorialTarget={index === 0}
           />
         )}
         contentContainerStyle={[
@@ -210,10 +226,10 @@ export default function PresetsScreen() {
             <TouchableOpacity
               style={[styles.ctaButton, { backgroundColor: colors.tint }]}
               activeOpacity={0.8}
-              onPress={() => router.push('/create/simple')}
+              onPress={() => router.push('/create/rewrite')}
             >
-              <IconSymbol name="paperplane.fill" size={16} color="#FFFFFF" />
-              <ThemedText style={styles.ctaButtonText}>メールを作成する</ThemedText>
+              <IconSymbol name="wand.and.stars" size={16} color="#FFFFFF" />
+              <ThemedText style={styles.ctaButtonText}>リライトで作成する</ThemedText>
             </TouchableOpacity>
           </View>
         }

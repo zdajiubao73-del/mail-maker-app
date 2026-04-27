@@ -30,6 +30,9 @@ export type UserStylePreferences = {
   signature: string;
   writingStyleNotes: string;
   openingText: string;
+  signatureEnabled: boolean;
+  writingStyleEnabled: boolean;
+  openingTextEnabled: boolean;
 };
 
 /** 学習プロファイル */

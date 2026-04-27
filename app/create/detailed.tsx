@@ -18,6 +18,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ContactPickerModal } from '@/components/contact-picker-modal';
 import { PaywallModal } from '@/components/paywall-modal';
 import { AIConsentModal } from '@/components/ai-consent-modal';
+import { LearningPreferencesPanel } from '@/components/learning-preferences-panel';
 import { useMailStore } from '@/store/use-mail-store';
 import { usePlanStore } from '@/store/use-plan-store';
 import { SITUATIONS, type SituationItem } from '@/constants/situations';
@@ -140,9 +141,6 @@ export default function DetailedCreateScreen() {
   const [mailLength, setMailLength] = useState<MailLength>(tone.mailLength);
   const [atmosphere, setAtmosphere] = useState<Atmosphere>(tone.atmosphere);
   const [urgency, setUrgency] = useState<Urgency>(tone.urgency);
-  const [writingStyleNotes, setWritingStyleNotes] = useState('');
-  const [openingText, setOpeningText] = useState('');
-  const [signature, setSignature] = useState('');
 
   // Step 4: Additional Info
   const [keyPoints, setKeyPoints] = useState('');
@@ -235,16 +233,14 @@ export default function DetailedCreateScreen() {
       return;
     }
 
-    const { canUseApp, canGenerate } = usePlanStore.getState();
-    if (!canUseApp()) {
+    const { isSubscribed, canGenerate } = usePlanStore.getState();
+    if (!isSubscribed()) {
       setShowPaywallModal(true);
       return;
     }
     if (!canGenerate()) {
-      Alert.alert('生成上限に達しました', '今月の生成上限に達しました。プレミアムプランにアップグレードすると、より多くのメールを生成できます。', [
-        { text: 'キャンセル', style: 'cancel' },
-        { text: 'プランを見る', onPress: () => router.push('/settings/plan') },
-      ]);
+      const limit = usePlanStore.getState().getMonthlyLimit();
+      Alert.alert('生成上限に達しました', `今月の生成上限（${limit}回）に達しました。来月になると再度ご利用いただけます。`);
       return;
     }
 
@@ -294,9 +290,6 @@ export default function DetailedCreateScreen() {
         situation: resolvedSituation,
         tone: toneSettings,
         additionalInfo,
-        writingStyleNotes: writingStyleNotes.trim() || undefined,
-        openingText: openingText.trim() || undefined,
-        signature: signature.trim() || undefined,
         learningContext,
       });
       setGeneratedMail(mail);
@@ -323,9 +316,6 @@ export default function DetailedCreateScreen() {
     dateTime,
     properNouns,
     notes,
-    writingStyleNotes,
-    openingText,
-    signature,
     recipientName,
     recipientEmail,
     setMode,
@@ -874,61 +864,13 @@ export default function DetailedCreateScreen() {
           />
         </View>
 
-        {/* Opening Text */}
+        {/* Learning preferences (文頭/文体/署名) */}
         <View style={styles.fieldGroup}>
-          {renderFieldLabel('文頭に入れる文章', 'optional')}
+          {renderFieldLabel('学習データの反映', 'optional')}
           <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
-            {'メール冒頭にそのまま挿入する文章を入力してください'}
+            {'設定した文頭・文体・署名をこの生成に反映します（個別にON/OFF切替可）'}
           </ThemedText>
-          <TextInput
-            style={[...inputStyle, styles.multilineInput]}
-            placeholder="例: いつもお世話になっております。株式会社〇〇の田中です。"
-            placeholderTextColor={colors.textSecondary}
-            value={openingText}
-            onChangeText={setOpeningText}
-            multiline
-            numberOfLines={2}
-            textAlignVertical="top"
-            maxLength={300}
-          />
-        </View>
-
-        {/* Writing Style Notes */}
-        <View style={styles.fieldGroup}>
-          {renderFieldLabel('文体の指示', 'optional')}
-          <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
-            {'文体について追加の指示があれば入力してください'}
-          </ThemedText>
-          <TextInput
-            style={[...inputStyle, styles.multilineInput]}
-            placeholder="例: です/ます調で、箇条書きを使って簡潔に"
-            placeholderTextColor={colors.textSecondary}
-            value={writingStyleNotes}
-            onChangeText={setWritingStyleNotes}
-            multiline
-            numberOfLines={2}
-            textAlignVertical="top"
-            maxLength={500}
-          />
-        </View>
-
-        {/* Signature */}
-        <View style={styles.fieldGroup}>
-          {renderFieldLabel('署名', 'optional')}
-          <ThemedText style={[styles.fieldHint, { color: colors.textSecondary }]}>
-            {'メール末尾に追加する署名を入力してください'}
-          </ThemedText>
-          <TextInput
-            style={[...inputStyle, styles.multilineInput]}
-            placeholder={'例:\n山田太郎\n株式会社〇〇 営業部\nTEL: 03-1234-5678'}
-            placeholderTextColor={colors.textSecondary}
-            value={signature}
-            onChangeText={setSignature}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-            maxLength={500}
-          />
+          <LearningPreferencesPanel />
         </View>
       </View>
     );

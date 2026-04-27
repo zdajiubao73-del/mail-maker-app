@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -27,6 +27,8 @@ import { Colors } from '@/constants/theme';
 import { generateMail, rewriteMail, generateReply } from '@/lib/mail-generator';
 import { sendMail } from '@/lib/mail-sender';
 import { useLearningStore } from '@/store/use-learning-store';
+import { useTutorialStore } from '@/store/use-tutorial-store';
+import { useRegisterTutorialTarget } from '@/hooks/use-tutorial-target';
 import { buildLearningContext } from '@/lib/learning-analyzer';
 import { isValidEmail } from '@/lib/validation';
 import type { MailHistoryItem, Attachment, GeneratedMail } from '@/types';
@@ -112,6 +114,13 @@ export default function PreviewScreen() {
       : [],
   );
   const [currentVersionIndex, setCurrentVersionIndex] = useState(0);
+
+  const bodyCardRef = useRef<View>(null);
+  const regenerateButtonRef = useRef<View>(null);
+  const savePresetButtonRef = useRef<View>(null);
+  useRegisterTutorialTarget('preview-review', bodyCardRef, { borderRadius: 14, padding: 4 });
+  useRegisterTutorialTarget('preview-regenerate', regenerateButtonRef, { borderRadius: 12 });
+  useRegisterTutorialTarget('preview-save-preset', savePresetButtonRef, { borderRadius: 8 });
 
   const [showCcBcc, setShowCcBcc] = useState(cc.length > 0 || bcc.length > 0);
   const [ccInput, setCcInput] = useState('');
@@ -243,7 +252,11 @@ export default function PreviewScreen() {
     try {
       setIsGenerating(true);
       const { profile: learningProfile, learningEnabled } = useLearningStore.getState();
-      const signature = learningEnabled && learningProfile?.preferences?.signature ? learningProfile.preferences.signature : undefined;
+      // 学習データ画面の文体設定（署名/文体の指示/文頭定型文）は learningEnabled に関係なく常に反映
+      const prefs = learningProfile?.preferences;
+      const signature = prefs?.signature?.trim() || undefined;
+      const writingStyleNotes = prefs?.writingStyleNotes?.trim() || undefined;
+      const openingText = prefs?.openingText?.trim() || undefined;
 
       let mail;
       if (mode === 'rewrite') {
@@ -253,6 +266,8 @@ export default function PreviewScreen() {
           atmosphere: rewriteAtmosphere,
           mailLength: rewriteMailLength,
           signature,
+          writingStyleNotes,
+          openingText,
           regenerationInstruction: instruction || undefined,
           previousMail: instruction ? { subject: editedSubject, body: editedBody } : undefined,
         });
@@ -262,6 +277,8 @@ export default function PreviewScreen() {
           replyIntent,
           honorificsLevel: replyHonorifics,
           signature,
+          writingStyleNotes,
+          openingText,
           regenerationInstruction: instruction || undefined,
           previousMail: instruction ? { subject: editedSubject, body: editedBody } : undefined,
         });
@@ -301,6 +318,11 @@ export default function PreviewScreen() {
       setGeneratedMail(mail);
       setEditedSubject(mail.subject);
       setEditedBody(mail.body);
+
+      // チュートリアル: 再生成成功で次ステップへ
+      if (useTutorialStore.getState().currentStep === 'preview-regenerate') {
+        useTutorialStore.getState().advance('preview-regenerate');
+      }
     } catch {
       Alert.alert('再生成エラー', 'メールの再生成に失敗しました。もう一度お試しください。');
     } finally {
@@ -841,6 +863,7 @@ export default function PreviewScreen() {
             )}
           </View>
           <View
+            ref={bodyCardRef}
             style={[
               styles.fieldCard,
               styles.bodyFieldCard,
@@ -851,6 +874,7 @@ export default function PreviewScreen() {
             ]}
           >
             <TextInput
+              testID="tut-preview-body"
               style={[
                 styles.bodyInput,
                 { color: colors.text },
@@ -984,6 +1008,8 @@ export default function PreviewScreen() {
             </View>
           </TouchableOpacity>
           <TouchableOpacity
+            ref={savePresetButtonRef}
+            testID="tut-save-preset"
             onPress={handleSavePreset}
             style={styles.draftButton}
             activeOpacity={0.6}
@@ -1036,6 +1062,8 @@ export default function PreviewScreen() {
         <View style={styles.bottomButtonRow}>
           {/* Regenerate */}
           <TouchableOpacity
+            ref={regenerateButtonRef}
+            testID="tut-regenerate"
             style={[
               styles.actionButton,
               styles.secondaryButton,

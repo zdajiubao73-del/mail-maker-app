@@ -16,10 +16,10 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ContactPickerModal } from '@/components/contact-picker-modal';
-import { PaywallModal } from '@/components/paywall-modal';
 import { AIConsentModal } from '@/components/ai-consent-modal';
 import { useMailStore } from '@/store/use-mail-store';
 import { usePlanStore } from '@/store/use-plan-store';
+import { PREMIUM_MONTHLY_LIMIT } from '@/constants/plan';
 import { SITUATIONS, type SituationItem } from '@/constants/situations';
 import { RELATIONSHIP_TONE_MAP } from '@/constants/tone-mapping';
 import { Colors } from '@/constants/theme';
@@ -66,7 +66,6 @@ export default function SimpleCreateScreen() {
   const [openingText, setOpeningText] = useState('');
   const [signature, setSignature] = useState('');
   const [isContactPickerVisible, setIsContactPickerVisible] = useState(false);
-  const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
 
   const handleSelectFromContacts = useCallback(() => {
@@ -99,16 +98,21 @@ export default function SimpleCreateScreen() {
       return;
     }
 
-    const { canUseApp, canGenerate } = usePlanStore.getState();
-    if (!canUseApp()) {
-      setShowPaywallModal(true);
-      return;
-    }
-    if (!canGenerate()) {
-      Alert.alert('生成上限に達しました', '今月の生成上限に達しました。プレミアムプランにアップグレードすると、より多くのメールを生成できます。', [
-        { text: 'キャンセル', style: 'cancel' },
-        { text: 'プランを見る', onPress: () => router.push('/settings/plan') },
-      ]);
+    const planState = usePlanStore.getState();
+    if (!planState.canGenerate()) {
+      const limit = planState.getMonthlyLimit();
+      if (planState.isSubscribed()) {
+        Alert.alert('生成上限に達しました', `今月の生成上限（${limit}回）に達しました。来月になると再度ご利用いただけます。`);
+      } else {
+        Alert.alert(
+          '生成上限に達しました',
+          `無料プランの今月の生成上限（${limit}回）に達しました。プレミアムプランにアップグレードすると、月${PREMIUM_MONTHLY_LIMIT}回まで生成できます。`,
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: 'プランを見る', onPress: () => router.push('/settings/plan') },
+          ],
+        );
+      }
       return;
     }
 
@@ -623,10 +627,6 @@ export default function SimpleCreateScreen() {
         visible={isContactPickerVisible}
         onClose={() => setIsContactPickerVisible(false)}
         onSelect={handleContactSelected}
-      />
-      <PaywallModal
-        visible={showPaywallModal}
-        onClose={() => setShowPaywallModal(false)}
       />
       <AIConsentModal
         visible={showConsentModal}

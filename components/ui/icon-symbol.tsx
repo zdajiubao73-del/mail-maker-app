@@ -53,10 +53,13 @@ const MAPPING = {
   // Paywall icons
   'star.fill': 'star',
   'checkmark.circle.fill': 'check-circle',
+  'crown.fill': 'workspace-premium',
 
   // Rewrite / Reply
   'wand.and.stars': 'auto-fix-high',
   'arrow.uturn.left': 'reply',
+  'square.and.pencil': 'drive-file-rename-outline',
+  'arrowshape.turn.up.left.fill': 'reply',
   'photo': 'image',
   'camera.fill': 'camera-alt',
   'text.bubble.fill': 'chat',

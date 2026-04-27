@@ -198,14 +198,14 @@ export function buildLearningContext(
     }
   }
 
-  // ユーザーが明示的に設定した項目は常に含める
-  if (preferences.signature.trim()) {
+  // ユーザーが明示的に設定した項目は、各項目のON/OFFトグルがOFFでない限り含める
+  if (preferences.signatureEnabled !== false && preferences.signature.trim()) {
     context.signature = preferences.signature.trim();
   }
-  if (preferences.writingStyleNotes.trim()) {
+  if (preferences.writingStyleEnabled !== false && preferences.writingStyleNotes.trim()) {
     context.writingStyleNotes = preferences.writingStyleNotes.trim();
   }
-  if (preferences.openingText?.trim()) {
+  if (preferences.openingTextEnabled !== false && preferences.openingText?.trim()) {
     context.openingText = preferences.openingText.trim();
   }
 

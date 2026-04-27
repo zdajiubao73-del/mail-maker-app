@@ -17,8 +17,11 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { PaywallModal } from '@/components/paywall-modal';
+import { LearningPreferencesPanel } from '@/components/learning-preferences-panel';
 import { useMailStore } from '@/store/use-mail-store';
 import { useLearningStore } from '@/store/use-learning-store';
+import { usePlanStore } from '@/store/use-plan-store';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { generateReply, extractTextFromImage, MailGenerationError } from '@/lib/mail-generator';
@@ -50,7 +53,6 @@ export default function ReplyScreen() {
   } = useMailStore();
 
   const learningProfile = useLearningStore((s) => s.profile);
-  const learningEnabled = useLearningStore((s) => s.learningEnabled);
 
   const [inputMode, setInputMode] = useState<InputMode>('text');
   const [receivedText, setReceivedText] = useState(replyReceivedText);
@@ -59,6 +61,7 @@ export default function ReplyScreen() {
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState('');
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
 
   const handlePickScreenshot = useCallback(async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -116,6 +119,16 @@ export default function ReplyScreen() {
       return;
     }
 
+    if (!usePlanStore.getState().isSubscribed()) {
+      setShowPaywallModal(true);
+      return;
+    }
+    if (!usePlanStore.getState().canGenerate()) {
+      const limit = usePlanStore.getState().getMonthlyLimit();
+      Alert.alert('生成上限に達しました', `今月の生成上限（${limit}回）に達しました。来月になると再度ご利用いただけます。`);
+      return;
+    }
+
     setReplyReceivedText(trimmedReceived);
     setReplyIntent(trimmedIntent);
     setReplyHonorifics(honorifics);
@@ -123,16 +136,27 @@ export default function ReplyScreen() {
 
     try {
       setIsGenerating(true);
-      const signature = learningEnabled && learningProfile?.preferences?.signature
-        ? learningProfile.preferences.signature
+      // 学習データ画面の文体設定は各項目のON/OFFトグル状態を尊重して反映する
+      const prefs = learningProfile?.preferences;
+      const signature = prefs?.signatureEnabled !== false
+        ? (prefs?.signature?.trim() || undefined)
+        : undefined;
+      const writingStyleNotes = prefs?.writingStyleEnabled !== false
+        ? (prefs?.writingStyleNotes?.trim() || undefined)
+        : undefined;
+      const openingText = prefs?.openingTextEnabled !== false
+        ? (prefs?.openingText?.trim() || undefined)
         : undefined;
       const mail = await generateReply({
         receivedMailText: trimmedReceived,
         replyIntent: trimmedIntent,
         honorificsLevel: honorifics,
         signature,
+        writingStyleNotes,
+        openingText,
       });
       setGeneratedMail(mail);
+      usePlanStore.getState().incrementGenerationCount();
       router.push('/preview');
     } catch (err) {
       const message = err instanceof MailGenerationError
@@ -142,7 +166,7 @@ export default function ReplyScreen() {
     } finally {
       setIsGenerating(false);
     }
-  }, [receivedText, intent, honorifics, setReplyReceivedText, setReplyIntent, setReplyHonorifics, setMode, setIsGenerating, setGeneratedMail, router, learningEnabled, learningProfile]);
+  }, [receivedText, intent, honorifics, setReplyReceivedText, setReplyIntent, setReplyHonorifics, setMode, setIsGenerating, setGeneratedMail, router, learningProfile]);
 
   const containerStyle = contentMaxWidth
     ? { maxWidth: contentMaxWidth + 48, alignSelf: 'center' as const, width: '100%' as const }
@@ -305,6 +329,14 @@ export default function ReplyScreen() {
             </View>
           </View>
 
+          {/* Learning preferences */}
+          <View style={styles.section}>
+            <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
+              学習データの反映
+            </ThemedText>
+            <LearningPreferencesPanel />
+          </View>
+
           {/* Generate button */}
           <TouchableOpacity
             style={[
@@ -325,6 +357,10 @@ export default function ReplyScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+      <PaywallModal
+        visible={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+      />
     </ThemedView>
   );
 }

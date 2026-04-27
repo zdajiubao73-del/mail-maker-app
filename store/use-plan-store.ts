@@ -6,7 +6,7 @@ import {
   isPurchasesConfigured,
 } from '@/lib/purchases';
 import type { SubscriptionStatus } from '@/lib/purchases';
-import { PREMIUM_MONTHLY_LIMIT } from '@/constants/plan';
+import { FREE_MONTHLY_LIMIT, PREMIUM_MONTHLY_LIMIT } from '@/constants/plan';
 import { zustandStorage } from '@/lib/storage';
 
 type PlanState = {
@@ -29,6 +29,7 @@ type PlanState = {
   applySubscriptionStatus: (status: SubscriptionStatus) => void;
   canGenerate: () => boolean;
   getRemainingGenerations: () => number;
+  getMonthlyLimit: () => number;
   incrementGenerationCount: () => void;
 };
 
@@ -53,10 +54,9 @@ export const usePlanStore = create<PlanState>()(
       },
 
       canUseApp: () => {
-        // 開発環境でRevenueCatが未設定の場合はペイウォールをスキップ
-        if (__DEV__ && !isPurchasesConfigured()) return true;
-        const plan = get().currentPlan;
-        return plan === 'subscribed' || plan === 'trial';
+        // フリーミアムモデル: アプリ本体は誰でも利用可能
+        // 個別の有料機能（返信生成・こだわり作成）は isSubscribed() で判定する
+        return true;
       },
 
       getTrialDaysRemaining: () => {
@@ -105,33 +105,31 @@ export const usePlanStore = create<PlanState>()(
 
       canGenerate: () => {
         const state = get();
-
-        // 未課金ユーザーは生成不可（ペイウォールでブロック）
-        if (state.currentPlan !== 'subscribed' && state.currentPlan !== 'trial') {
-          return false;
-        }
-
+        const limit = get().getMonthlyLimit();
         const now = new Date();
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const monthlyCount = state.monthlyGenerationResetMonth === currentMonth
           ? state.monthlyGenerationCount
           : 0;
-        return monthlyCount < PREMIUM_MONTHLY_LIMIT;
+        return monthlyCount < limit;
       },
 
       getRemainingGenerations: () => {
         const state = get();
-
-        if (state.currentPlan !== 'subscribed' && state.currentPlan !== 'trial') {
-          return 0;
-        }
-
+        const limit = get().getMonthlyLimit();
         const now = new Date();
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const monthlyCount = state.monthlyGenerationResetMonth === currentMonth
           ? state.monthlyGenerationCount
           : 0;
-        return PREMIUM_MONTHLY_LIMIT - monthlyCount;
+        return limit - monthlyCount;
+      },
+
+      getMonthlyLimit: () => {
+        const plan = get().currentPlan;
+        return plan === 'subscribed' || plan === 'trial'
+          ? PREMIUM_MONTHLY_LIMIT
+          : FREE_MONTHLY_LIMIT;
       },
 
       incrementGenerationCount: () => {

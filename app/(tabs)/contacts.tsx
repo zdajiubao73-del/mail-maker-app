@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -19,6 +19,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useContactStore } from '@/store/use-contact-store';
+import { useRegisterTutorialTarget } from '@/hooks/use-tutorial-target';
 import { isValidEmail } from '@/lib/validation';
 import {
   useAuthRequest as useGoogleAuthRequest,
@@ -208,6 +209,8 @@ export default function ContactsScreen() {
 
   const [selectedFilter, setSelectedFilter] = useState<FilterTab>('すべて');
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const addContactRef = useRef<View>(null);
+  useRegisterTutorialTarget('contacts-add', addContactRef, { borderRadius: 22, padding: 6 });
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newRelationship, setNewRelationship] =
@@ -527,6 +530,8 @@ export default function ContactsScreen() {
             )}
           </TouchableOpacity>
           <TouchableOpacity
+            ref={addContactRef}
+            testID="tut-add-contact"
             style={[styles.addButton, { backgroundColor: colors.tint }]}
             onPress={() => setIsModalVisible(true)}
           >

@@ -21,13 +21,13 @@ type Props = {
 export function PaywallModal({ visible, onClose }: Props) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const canUseApp = usePlanStore((s) => s.canUseApp);
+  const isSubscribed = usePlanStore((s) => s.isSubscribed);
 
   useEffect(() => {
-    if (canUseApp() && visible) {
+    if (isSubscribed() && visible) {
       onClose();
     }
-  }, [canUseApp, visible, onClose]);
+  }, [isSubscribed, visible, onClose]);
 
   return (
     <Modal

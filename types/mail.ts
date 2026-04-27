@@ -135,6 +135,8 @@ export type RewriteRequest = {
   atmosphere?: Atmosphere;
   mailLength?: MailLength;
   signature?: string;
+  writingStyleNotes?: string;
+  openingText?: string;
   regenerationInstruction?: string;
   previousMail?: { subject: string; body: string };
 };
@@ -147,6 +149,8 @@ export type ReplyRequest = {
   atmosphere?: Atmosphere;
   mailLength?: MailLength;
   signature?: string;
+  writingStyleNotes?: string;
+  openingText?: string;
   regenerationInstruction?: string;
   previousMail?: { subject: string; body: string };
 };

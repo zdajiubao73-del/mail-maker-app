@@ -14,6 +14,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useContentMaxWidth } from '@/hooks/use-responsive';
+import { useTutorialStore } from '@/store/use-tutorial-store';
 
 type SettingsItem = {
   label: string;
@@ -24,6 +25,7 @@ type SettingsItem = {
   disabled?: boolean;
   badge?: string;
   value?: string;
+  action?: 'reset-tutorial';
 };
 
 type SettingsSection = {
@@ -75,6 +77,12 @@ export default function SettingsScreen() {
           iconBg: '#EC4899',
           route: '/settings/learning-data',
         },
+        {
+          label: 'チュートリアルをもう一度見る',
+          icon: 'sparkles',
+          iconBg: '#4F46E5',
+          action: 'reset-tutorial',
+        },
       ],
     },
     {
@@ -110,6 +118,11 @@ export default function SettingsScreen() {
 
   const handlePress = (item: SettingsItem) => {
     if (item.disabled) return;
+    if (item.action === 'reset-tutorial') {
+      useTutorialStore.getState().reset();
+      router.push('/settings/learning-data');
+      return;
+    }
     if (item.externalUrl) {
       Linking.openURL(item.externalUrl);
       return;
@@ -204,7 +217,7 @@ export default function SettingsScreen() {
                             {item.value}
                           </ThemedText>
                         )}
-                        {(item.route || item.externalUrl) && !item.disabled && (
+                        {(item.route || item.externalUrl || item.action) && !item.disabled && (
                           <IconSymbol
                             name="chevron.right"
                             size={13}

@@ -739,8 +739,24 @@ async function handleRewrite(body: Record<string, unknown>, corsHeaders: Record<
   const atmosphere = (body.atmosphere as Atmosphere) ?? "落ち着いた";
   const mailLength = (body.mailLength as MailLength) ?? "標準";
   const signature = typeof body.signature === "string" ? body.signature : undefined;
+  const writingStyleNotes = typeof body.writingStyleNotes === "string" && body.writingStyleNotes.trim() ? body.writingStyleNotes.trim() : undefined;
+  const openingText = typeof body.openingText === "string" && body.openingText.trim() ? body.openingText.trim() : undefined;
   const regenerationInstruction = typeof body.regenerationInstruction === "string" ? body.regenerationInstruction : undefined;
   const previousMail = body.previousMail as { subject: string; body: string } | undefined;
+
+  // 文字数バリデーション
+  if (writingStyleNotes && writingStyleNotes.length > 500) {
+    return new Response(
+      JSON.stringify({ error: "writingStyleNotes は500文字以内にしてください。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (openingText && openingText.length > 300) {
+    return new Response(
+      JSON.stringify({ error: "openingText は300文字以内にしてください。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
   const lengthGuide: Record<MailLength, string> = {
     "短め": "本文150〜250文字程度",
@@ -748,7 +764,7 @@ async function handleRewrite(body: Record<string, unknown>, corsHeaders: Record<
     "長め": "本文500〜800文字程度",
   };
 
-  const systemPrompt = `あなたは日本語メール添削の専門家です。
+  let systemPrompt = `あなたは日本語メール添削の専門家です。
 ユーザーが書いた下書きメールを、ビジネスマナーと敬語の観点から自然に整えてください。
 
 ${getHonorificsDetail(VALID_HONORIFICS_LEVELS.includes(honorificsLevel) ? honorificsLevel : "丁寧")}
@@ -765,13 +781,35 @@ ${getAtmosphereDetail(VALID_ATMOSPHERES.includes(atmosphere) ? atmosphere : "落
 ## アンチパターン
 - 二重敬語（×「おっしゃられる」）
 - 「させていただきます」の乱用（1通1回まで）
-- 「〜の方」「〜になります」等の誤用敬語
+- 「〜の方」「〜になります」等の誤用敬語`;
+
+  if (openingText) {
+    systemPrompt += `
+
+## 文頭に入れる文章（必須）
+以下の文章をメール本文の最初にそのまま使用してください。この文章の後に続けて整形した本題を書いてください。
+文頭テキスト: ${sanitizeUserInput(openingText)}`;
+  }
+
+  if (writingStyleNotes) {
+    systemPrompt += `
+
+## ユーザーからの文体指示（最優先 — 必ず従うこと）
+ユーザーが以下の文体指示を設定しています。上記の敬語レベル・雰囲気の設定よりもこの指示を優先してください。
+メール全体をこの指示に従った文体で書いてください。
+指示: 「${sanitizeUserInput(writingStyleNotes)}」`;
+  }
+
+  systemPrompt += `
 
 ## 出力ルール
 必ず以下のJSON形式で出力: {"subject": "件名", "body": "本文"}
 件名は30文字以内。改行は \\n。JSON以外は出力しない。`;
 
   let userPrompt = `以下の下書きメールを整えてください:\n\n"""\n${sanitizeUserInput(draftText)}\n"""`;
+  if (writingStyleNotes) {
+    userPrompt += `\n\n【重要】文体指示: 「${sanitizeUserInput(writingStyleNotes)}」で書いてください。`;
+  }
   if (regenerationInstruction && previousMail) {
     userPrompt += `\n\n【再整形指示】先ほど生成した結果:\n件名: ${sanitizeUserInput(previousMail.subject)}\n本文:\n${sanitizeUserInput(previousMail.body)}\n\n修正指示: 「${sanitizeUserInput(regenerationInstruction)}」\n\n上記の修正指示に従って書き直してください。`;
   } else if (regenerationInstruction) {
@@ -823,8 +861,24 @@ async function handleReply(body: Record<string, unknown>, corsHeaders: Record<st
   const atmosphere = (body.atmosphere as Atmosphere) ?? "落ち着いた";
   const mailLength = (body.mailLength as MailLength) ?? "標準";
   const signature = typeof body.signature === "string" ? body.signature : undefined;
+  const writingStyleNotes = typeof body.writingStyleNotes === "string" && body.writingStyleNotes.trim() ? body.writingStyleNotes.trim() : undefined;
+  const openingText = typeof body.openingText === "string" && body.openingText.trim() ? body.openingText.trim() : undefined;
   const regenerationInstruction = typeof body.regenerationInstruction === "string" ? body.regenerationInstruction : undefined;
   const previousMail = body.previousMail as { subject: string; body: string } | undefined;
+
+  // 文字数バリデーション
+  if (writingStyleNotes && writingStyleNotes.length > 500) {
+    return new Response(
+      JSON.stringify({ error: "writingStyleNotes は500文字以内にしてください。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  if (openingText && openingText.length > 300) {
+    return new Response(
+      JSON.stringify({ error: "openingText は300文字以内にしてください。" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
   const lengthGuide: Record<MailLength, string> = {
     "短め": "本文150〜250文字程度",
@@ -832,7 +886,7 @@ async function handleReply(body: Record<string, unknown>, corsHeaders: Record<st
     "長め": "本文500〜800文字程度",
   };
 
-  const systemPrompt = `あなたは日本語ビジネスメール作成の専門家です。
+  let systemPrompt = `あなたは日本語ビジネスメール作成の専門家です。
 受け取ったメールに対する返信を作成してください。
 
 ${getHonorificsDetail(VALID_HONORIFICS_LEVELS.includes(honorificsLevel) ? honorificsLevel : "丁寧")}
@@ -844,13 +898,35 @@ ${getAtmosphereDetail(VALID_ATMOSPHERES.includes(atmosphere) ? atmosphere : "落
 - ユーザーの返信意図を的確に表現
 - 宛名・署名は本文に含めない
 - ${lengthGuide[VALID_MAIL_LENGTHS.includes(mailLength) ? mailLength : "標準"]}
-- 件名は「Re: 元の件名」形式で
+- 件名は「Re: 元の件名」形式で`;
+
+  if (openingText) {
+    systemPrompt += `
+
+## 文頭に入れる文章（必須）
+以下の文章を返信本文の最初にそのまま使用してください。この文章の後に続けて本題を書いてください。
+文頭テキスト: ${sanitizeUserInput(openingText)}`;
+  }
+
+  if (writingStyleNotes) {
+    systemPrompt += `
+
+## ユーザーからの文体指示（最優先 — 必ず従うこと）
+ユーザーが以下の文体指示を設定しています。上記の敬語レベル・雰囲気の設定よりもこの指示を優先してください。
+返信全体をこの指示に従った文体で書いてください。
+指示: 「${sanitizeUserInput(writingStyleNotes)}」`;
+  }
+
+  systemPrompt += `
 
 ## 出力ルール
 必ず以下のJSON形式で出力: {"subject": "件名", "body": "本文"}
 改行は \\n。JSON以外は出力しない。`;
 
   let userPrompt = `【受け取ったメール】\n"""\n${sanitizeUserInput(receivedMailText)}\n"""\n\n【返信の意図】\n${sanitizeUserInput(replyIntent)}`;
+  if (writingStyleNotes) {
+    userPrompt += `\n\n【重要】文体指示: 「${sanitizeUserInput(writingStyleNotes)}」で書いてください。`;
+  }
   if (regenerationInstruction && previousMail) {
     userPrompt += `\n\n【再生成指示】先ほど生成した返信:\n件名: ${sanitizeUserInput(previousMail.subject)}\n本文:\n${sanitizeUserInput(previousMail.body)}\n\n修正指示: 「${sanitizeUserInput(regenerationInstruction)}」`;
   } else if (regenerationInstruction) {

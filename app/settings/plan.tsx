@@ -15,7 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
-import { MONTHLY_PRICE, YEARLY_PRICE, PREMIUM_MONTHLY_LIMIT } from '@/constants/plan';
+import { MONTHLY_PRICE, YEARLY_PRICE, FREE_MONTHLY_LIMIT, PREMIUM_MONTHLY_LIMIT } from '@/constants/plan';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePlanStore } from '@/store/use-plan-store';
 import {
@@ -56,11 +56,19 @@ export default function PlanScreen() {
     return `¥${fallback.toLocaleString()}`;
   };
 
-  const features = useMemo(() => [
+  const freeFeatures = useMemo(() => [
+    'リライト（下書きをAIで整える）',
+    'テンプレートからメール作成',
+    `月${FREE_MONTHLY_LIMIT}回までメール生成`,
+    '直接メール送信（Gmail連携）',
+    '連絡先管理',
+    '履歴の保存・再利用',
+  ], []);
+
+  const premiumFeatures = useMemo(() => [
+    '返信生成（スクショ・テキストから自動返信）',
+    'こだわり作成（相手・トーン・長さを細かく指定）',
     `月${PREMIUM_MONTHLY_LIMIT}回までメール生成`,
-    '全テンプレート利用可能',
-    '直接メール送信',
-    '学習データ機能',
   ], []);
 
   useEffect(() => {
@@ -174,7 +182,7 @@ export default function PlanScreen() {
                   ? 'プレミアム'
                   : currentPlan === 'trial'
                     ? 'トライアル'
-                    : '未登録'}
+                    : '無料プラン'}
               </ThemedText>
             </View>
             {isSubscribed() && (
@@ -187,7 +195,29 @@ export default function PlanScreen() {
             )}
           </View>
 
-          {/* Features */}
+          {/* Free features */}
+          <View style={styles.sectionHeader}>
+            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+              無料で使える機能
+            </ThemedText>
+          </View>
+
+          <View style={[styles.card, { backgroundColor: cardBg }]}>
+            {freeFeatures.map((feature, index) => (
+              <View
+                key={feature}
+                style={[
+                  styles.featureRow,
+                  index < freeFeatures.length - 1 && styles.featureRowBorder,
+                ]}
+              >
+                <IconSymbol name="checkmark.circle.fill" size={20} color="#34C759" />
+                <ThemedText style={styles.featureText}>{feature}</ThemedText>
+              </View>
+            ))}
+          </View>
+
+          {/* Premium features */}
           <View style={styles.sectionHeader}>
             <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
               プレミアム機能
@@ -195,15 +225,15 @@ export default function PlanScreen() {
           </View>
 
           <View style={[styles.card, { backgroundColor: cardBg }]}>
-            {features.map((feature, index) => (
+            {premiumFeatures.map((feature, index) => (
               <View
                 key={feature}
                 style={[
                   styles.featureRow,
-                  index < features.length - 1 && styles.featureRowBorder,
+                  index < premiumFeatures.length - 1 && styles.featureRowBorder,
                 ]}
               >
-                <IconSymbol name="checkmark.circle.fill" size={20} color="#34C759" />
+                <IconSymbol name="star.fill" size={20} color="#FFD60A" />
                 <ThemedText style={styles.featureText}>{feature}</ThemedText>
               </View>
             ))}

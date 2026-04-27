@@ -35,6 +35,9 @@ export const useLearningStore = create<LearningState>()(
               signature: '',
               writingStyleNotes: '',
               openingText: '',
+              signatureEnabled: true,
+              writingStyleEnabled: true,
+              openingTextEnabled: true,
             },
             lastAnalyzedAt: new Date().toISOString(),
             lastAnalyzedMailCount: history.length,
@@ -63,6 +66,9 @@ export const useLearningStore = create<LearningState>()(
                 signature: '',
                 writingStyleNotes: '',
                 openingText: '',
+                signatureEnabled: true,
+                writingStyleEnabled: true,
+                openingTextEnabled: true,
                 ...partial,
               },
               lastAnalyzedAt: new Date().toISOString(),
@@ -94,13 +100,24 @@ export const useLearningStore = create<LearningState>()(
     {
       name: 'learning-storage',
       storage: zustandStorage,
-      version: 1,
+      version: 2,
       partialize: (state) => ({
         profile: state.profile,
         learningEnabled: state.learningEnabled,
       }),
-      migrate: (persisted) => {
-        return persisted as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      migrate: (persisted, version) => {
+        const state = persisted as any;
+        if (version < 2 && state?.profile?.preferences) {
+          // v1 → v2: ON/OFFトグルのデフォルト値（既存ユーザーは全てON）
+          state.profile.preferences.signatureEnabled =
+            state.profile.preferences.signatureEnabled ?? true;
+          state.profile.preferences.writingStyleEnabled =
+            state.profile.preferences.writingStyleEnabled ?? true;
+          state.profile.preferences.openingTextEnabled =
+            state.profile.preferences.openingTextEnabled ?? true;
+        }
+        return state;
       },
     },
   ),

@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useRegisterTutorialTarget } from '@/hooks/use-tutorial-target';
 import { useLearningStore } from '@/store/use-learning-store';
 import { useMailStore } from '@/store/use-mail-store';
 import { getTopDistributionLabel } from '@/lib/learning-analyzer';
@@ -39,6 +40,17 @@ export default function LearningDataScreen() {
   const [openingText, setOpeningText] = useState(
     profile?.preferences.openingText ?? '',
   );
+
+  const signatureEnabled = profile?.preferences.signatureEnabled !== false;
+  const writingStyleEnabled = profile?.preferences.writingStyleEnabled !== false;
+  const openingTextEnabled = profile?.preferences.openingTextEnabled !== false;
+
+  const signatureRef = useRef<TextInput>(null);
+  const styleRef = useRef<TextInput>(null);
+  const openingRef = useRef<TextInput>(null);
+  useRegisterTutorialTarget('learning-signature', signatureRef, { borderRadius: 10 });
+  useRegisterTutorialTarget('learning-style', styleRef, { borderRadius: 10 });
+  useRegisterTutorialTarget('learning-opening', openingRef, { borderRadius: 10 });
 
   // 画面表示時に履歴件数変化を検知して自動再分析（学習統計オン時のみ）
   useEffect(() => {
@@ -137,11 +149,19 @@ export default function LearningDataScreen() {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
-              署名
-            </ThemedText>
+            <View style={styles.labelRow}>
+              <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                署名
+              </ThemedText>
+              <Switch
+                value={signatureEnabled}
+                onValueChange={(v) => updatePreferences({ signatureEnabled: v })}
+                trackColor={{ false: colors.border, true: colors.tint + '70' }}
+                thumbColor={signatureEnabled ? colors.tint : colors.icon}
+              />
+            </View>
             <ThemedText style={[styles.inputHint, { color: colors.icon }]}>
-              メール末尾に自動挿入される署名を設定できます
+              メール末尾に自動挿入される署名を設定できます（OFFにすると生成時に反映されません）
             </ThemedText>
             <View style={[styles.aiWarning, { backgroundColor: '#FF950010', borderColor: '#FF950040' }]}>
               <MaterialIcons name="info-outline" size={14} color="#FF9500" />
@@ -150,6 +170,8 @@ export default function LearningDataScreen() {
               </ThemedText>
             </View>
             <TextInput
+              ref={signatureRef}
+              testID="tut-signature"
               style={[
                 styles.textInput,
                 {
@@ -171,13 +193,23 @@ export default function LearningDataScreen() {
 
             <View style={[styles.inputSeparator, { backgroundColor: colors.border }]} />
 
-            <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
-              文体の指示
-            </ThemedText>
+            <View style={styles.labelRow}>
+              <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                文体の指示
+              </ThemedText>
+              <Switch
+                value={writingStyleEnabled}
+                onValueChange={(v) => updatePreferences({ writingStyleEnabled: v })}
+                trackColor={{ false: colors.border, true: colors.tint + '70' }}
+                thumbColor={writingStyleEnabled ? colors.tint : colors.icon}
+              />
+            </View>
             <ThemedText style={[styles.inputHint, { color: colors.icon }]}>
               AIに文体について指示を出せます（例: 「です・ます調で」「簡潔に」）
             </ThemedText>
             <TextInput
+              ref={styleRef}
+              testID="tut-style"
               style={[
                 styles.textInput,
                 {
@@ -199,13 +231,23 @@ export default function LearningDataScreen() {
 
             <View style={[styles.inputSeparator, { backgroundColor: colors.border }]} />
 
-            <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
-              文頭に入れる文章
-            </ThemedText>
+            <View style={styles.labelRow}>
+              <ThemedText style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                文頭に入れる文章
+              </ThemedText>
+              <Switch
+                value={openingTextEnabled}
+                onValueChange={(v) => updatePreferences({ openingTextEnabled: v })}
+                trackColor={{ false: colors.border, true: colors.tint + '70' }}
+                thumbColor={openingTextEnabled ? colors.tint : colors.icon}
+              />
+            </View>
             <ThemedText style={[styles.inputHint, { color: colors.icon }]}>
               メール本文の最初に必ず入れたい文章を設定できます
             </ThemedText>
             <TextInput
+              ref={openingRef}
+              testID="tut-opening"
               style={[
                 styles.textInput,
                 {
@@ -620,6 +662,12 @@ const styles = StyleSheet.create({
   },
 
   // Input
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',

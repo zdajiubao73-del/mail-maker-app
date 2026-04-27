@@ -135,10 +135,18 @@ export async function generateMail(
 export async function rewriteMail(request: RewriteRequest): Promise<GeneratedMail> {
   if (useMock()) {
     await new Promise((resolve) => setTimeout(resolve, 1500));
+    const opening = request.openingText?.trim() || 'お世話になっております。';
+    const styleNote = request.writingStyleNotes?.trim()
+      ? `\n[文体指示反映: ${request.writingStyleNotes.trim()}]`
+      : '';
+    let body = `${opening}\n\n${request.draftText}${styleNote}\n\n何卒よろしくお願いいたします。`;
+    if (request.signature?.trim()) {
+      body += `\n\n${request.signature.trim()}`;
+    }
     return {
       id: generateId(),
       subject: '【整形済み】ご確認のお願い',
-      body: `お世話になっております。\n\n${request.draftText}\n\n何卒よろしくお願いいたします。`,
+      body,
       createdAt: new Date(),
     };
   }
@@ -169,10 +177,18 @@ export async function rewriteMail(request: RewriteRequest): Promise<GeneratedMai
 export async function generateReply(request: ReplyRequest): Promise<GeneratedMail> {
   if (useMock()) {
     await new Promise((resolve) => setTimeout(resolve, 1500));
+    const opening = request.openingText?.trim() || 'お世話になっております。';
+    const styleNote = request.writingStyleNotes?.trim()
+      ? `\n[文体指示反映: ${request.writingStyleNotes.trim()}]`
+      : '';
+    let body = `${opening}\n\nご連絡いただきありがとうございます。\n${request.replyIntent}${styleNote}\n\n何卒よろしくお願いいたします。`;
+    if (request.signature?.trim()) {
+      body += `\n\n${request.signature.trim()}`;
+    }
     return {
       id: generateId(),
       subject: 'Re: ご連絡ありがとうございます',
-      body: `お世話になっております。\n\nご連絡いただきありがとうございます。\n${request.replyIntent}\n\n何卒よろしくお願いいたします。`,
+      body,
       createdAt: new Date(),
     };
   }

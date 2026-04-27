@@ -166,8 +166,8 @@ function EmptyState({ colors, onCreatePress }: { colors: (typeof Colors)['light'
         activeOpacity={0.8}
         onPress={onCreatePress}
       >
-        <IconSymbol name="paperplane.fill" size={16} color="#FFFFFF" />
-        <ThemedText style={styles.ctaButtonText}>メールを作成する</ThemedText>
+        <IconSymbol name="wand.and.stars" size={16} color="#FFFFFF" />
+        <ThemedText style={styles.ctaButtonText}>リライトで作成する</ThemedText>
       </TouchableOpacity>
     </View>
   );
@@ -199,7 +199,7 @@ export default function HistoryScreen() {
             history.length === 0 && styles.listContentEmpty,
             contentMaxWidth ? { maxWidth: contentMaxWidth + 48, alignSelf: 'center' as const, width: '100%' as const } : undefined,
           ]}
-          ListEmptyComponent={<EmptyState colors={colors} onCreatePress={() => router.push('/create/simple')} />}
+          ListEmptyComponent={<EmptyState colors={colors} onCreatePress={() => router.push('/create/rewrite')} />}
           showsVerticalScrollIndicator={false}
         />
     </ThemedView>
