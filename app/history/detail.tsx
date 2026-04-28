@@ -79,7 +79,11 @@ export default function HistoryDetailScreen() {
           style: 'destructive',
           onPress: () => {
             removeHistory(item.id);
-            router.back();
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/history');
+            }
           },
         },
       ],
@@ -118,7 +122,7 @@ export default function HistoryDetailScreen() {
           </ThemedText>
           <TouchableOpacity
             style={[styles.backButton, { backgroundColor: colors.tint }]}
-            onPress={() => router.back()}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/history'))}
           >
             <ThemedText style={styles.backButtonText}>{'戻る'}</ThemedText>
           </TouchableOpacity>

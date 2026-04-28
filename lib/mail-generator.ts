@@ -25,6 +25,30 @@ function generateId(): string {
   return `mail_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+// LLM が冒頭に挿入しがちな汎用挨拶（ユーザー指定の openingText で置き換える対象）
+const LLM_OPENING_GREETING_PATTERN =
+  /^(?:いつも|大変|平素より|平素は|早速の|早々の)?(?:お世話になっております|お世話になります|ご連絡(?:いただき)?ありがとうございます|お忙しいところ恐れ入ります|お忙しいところ失礼(?:いた)?します|突然のご連絡(?:失礼(?:いた)?します)?|初めてご連絡(?:いた)?します|初めまして|お疲れ様です|お疲れさまです)[、。！\s]*\n+/;
+
+/**
+ * AI 応答の本文に「文頭に入れる文章」を確実に反映する。
+ * - すでに先頭に同じ文言があれば何もしない
+ * - LLM が独自の冒頭挨拶を入れていた場合は除去してから差し替える
+ */
+function prependOpeningText(body: string, openingText: string | undefined): string {
+  const trimmedOpening = openingText?.trim();
+  if (!trimmedOpening) return body;
+
+  let trimmedBody = body.trimStart();
+  if (trimmedBody.startsWith(trimmedOpening)) {
+    return trimmedBody;
+  }
+
+  // LLM が出力した一般的な冒頭挨拶を除去（重複を防ぐ）
+  trimmedBody = trimmedBody.replace(LLM_OPENING_GREETING_PATTERN, '').trimStart();
+
+  return `${trimmedOpening}\n\n${trimmedBody}`;
+}
+
 /**
  * モックフォールバックかどうかを判定する
  * 本番ビルドではモックを無効化
@@ -168,7 +192,7 @@ export async function rewriteMail(request: RewriteRequest): Promise<GeneratedMai
     throw new MailGenerationError('AIからの応答が不完全です。再度お試しください。', 'API_ERROR');
   }
 
-  return { id: generateId(), subject: data.subject, body: data.body, createdAt: new Date() };
+  return { id: generateId(), subject: data.subject, body: prependOpeningText(data.body, request.openingText), createdAt: new Date() };
 }
 
 /**
@@ -210,7 +234,7 @@ export async function generateReply(request: ReplyRequest): Promise<GeneratedMai
     throw new MailGenerationError('AIからの応答が不完全です。再度お試しください。', 'API_ERROR');
   }
 
-  return { id: generateId(), subject: data.subject, body: data.body, createdAt: new Date() };
+  return { id: generateId(), subject: data.subject, body: prependOpeningText(data.body, request.openingText), createdAt: new Date() };
 }
 
 /**

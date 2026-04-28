@@ -231,6 +231,30 @@ function validateRequest(body: unknown): { valid: true; data: MailGenerationRequ
 
 // --- プロンプトインジェクション対策 ---
 
+// LLM が冒頭に挿入しがちな汎用挨拶（ユーザー指定の openingText で置き換える対象）
+const LLM_OPENING_GREETING_PATTERN =
+  /^(?:いつも|大変|平素より|平素は|早速の|早々の)?(?:お世話になっております|お世話になります|ご連絡(?:いただき)?ありがとうございます|お忙しいところ恐れ入ります|お忙しいところ失礼(?:いた)?します|突然のご連絡(?:失礼(?:いた)?します)?|初めてご連絡(?:いた)?します|初めまして|お疲れ様です|お疲れさまです)[、。！\s]*\n+/;
+
+/**
+ * AI 応答の本文に「文頭に入れる文章」を確実に反映する。
+ * - すでに先頭に同じ文言があれば何もしない
+ * - LLM が独自の冒頭挨拶を入れていた場合は除去してから差し替える
+ */
+function prependOpeningText(body: string, openingText: string | undefined): string {
+  const trimmedOpening = openingText?.trim();
+  if (!trimmedOpening) return body;
+
+  let trimmedBody = body.trimStart();
+  if (trimmedBody.startsWith(trimmedOpening)) {
+    return trimmedBody;
+  }
+
+  // LLM が出力した一般的な冒頭挨拶を除去（重複を防ぐ）
+  trimmedBody = trimmedBody.replace(LLM_OPENING_GREETING_PATTERN, "").trimStart();
+
+  return `${trimmedOpening}\n\n${trimmedBody}`;
+}
+
 function sanitizeUserInput(input: string): string {
   return input
     // Unicode正規化（NFKC）
@@ -786,9 +810,12 @@ ${getAtmosphereDetail(VALID_ATMOSPHERES.includes(atmosphere) ? atmosphere : "落
   if (openingText) {
     systemPrompt += `
 
-## 文頭に入れる文章（必須）
-以下の文章をメール本文の最初にそのまま使用してください。この文章の後に続けて整形した本題を書いてください。
-文頭テキスト: ${sanitizeUserInput(openingText)}`;
+## 冒頭挨拶（必ず守ること）
+ユーザーが冒頭に入れる挨拶文を別途指定しているため、本文の冒頭には挨拶文を一切書かないでください。
+- 「お世話になっております」「いつもお世話になっております」「ご連絡ありがとうございます」「初めてご連絡いたします」等の挨拶定型文を書かない
+- 本題（要件・内容）から直接書き始めること
+冒頭挨拶は出力後にシステムが自動的に付与します。
+（参考までに、付与される冒頭挨拶: 「${sanitizeUserInput(openingText)}」— 重複しないよう本文には含めないこと）`;
   }
 
   if (writingStyleNotes) {
@@ -817,6 +844,9 @@ ${getAtmosphereDetail(VALID_ATMOSPHERES.includes(atmosphere) ? atmosphere : "落
   }
 
   const result = await callOpenAI(systemPrompt, userPrompt);
+  if (openingText) {
+    result.body = prependOpeningText(result.body, openingText);
+  }
   if (signature) {
     const trimmedSig = signature.trim();
     if (!result.body.trimEnd().endsWith(trimmedSig)) {
@@ -903,9 +933,12 @@ ${getAtmosphereDetail(VALID_ATMOSPHERES.includes(atmosphere) ? atmosphere : "落
   if (openingText) {
     systemPrompt += `
 
-## 文頭に入れる文章（必須）
-以下の文章を返信本文の最初にそのまま使用してください。この文章の後に続けて本題を書いてください。
-文頭テキスト: ${sanitizeUserInput(openingText)}`;
+## 冒頭挨拶（必ず守ること）
+ユーザーが冒頭に入れる挨拶文を別途指定しているため、返信本文の冒頭には挨拶文を一切書かないでください。
+- 「お世話になっております」「ご連絡ありがとうございます」「早速のご連絡ありがとうございます」「お忙しいところ恐れ入ります」等の挨拶定型文を書かない
+- 本題（返信内容）から直接書き始めること
+冒頭挨拶は出力後にシステムが自動的に付与します。
+（参考までに、付与される冒頭挨拶: 「${sanitizeUserInput(openingText)}」— 重複しないよう本文には含めないこと）`;
   }
 
   if (writingStyleNotes) {
@@ -934,6 +967,9 @@ ${getAtmosphereDetail(VALID_ATMOSPHERES.includes(atmosphere) ? atmosphere : "落
   }
 
   const result = await callOpenAI(systemPrompt, userPrompt);
+  if (openingText) {
+    result.body = prependOpeningText(result.body, openingText);
+  }
   if (signature) {
     const trimmedSig = signature.trim();
     if (!result.body.trimEnd().endsWith(trimmedSig)) {

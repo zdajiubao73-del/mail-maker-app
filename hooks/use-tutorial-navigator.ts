@@ -23,6 +23,15 @@ const STEP_TO_PATH: Partial<Record<TutorialStep, string>> = {
   'presets-tap-card': '/settings/presets',
 };
 
+// チュートリアル中であってもユーザーが意図的に到達する補助画面では
+// 自動遷移を抑制する（戻るボタンで自然にチュートリアルに復帰できる）
+const SKIP_REDIRECT_PATHS: ReadonlySet<string> = new Set<string>([
+  '/settings/plan',
+  '/settings/account',
+  '/settings/privacy',
+  '/settings/terms',
+]);
+
 /**
  * currentStep に応じて期待画面へ自動遷移する。
  * 同じ画面ならスキップしてループ防止。
@@ -36,6 +45,10 @@ export function useTutorialNavigator() {
   useEffect(() => {
     if (isPaused) return;
     if (currentStep === 'idle' || currentStep === 'completed') return;
+
+    // ユーザーが意図的に到達した補助画面では自動遷移しない
+    // （戻るボタンでチュートリアル画面に戻ったときに自動で復帰する）
+    if (SKIP_REDIRECT_PATHS.has(pathname)) return;
 
     // プレビュー系ステップで生成メールが無い場合（アプリ再起動など）はリライトに巻き戻し
     if (PREVIEW_STEPS.has(currentStep) && !useMailStore.getState().generatedMail) {

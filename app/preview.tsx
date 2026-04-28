@@ -609,7 +609,7 @@ export default function PreviewScreen() {
           </ThemedText>
           <TouchableOpacity
             style={[styles.emptyButton, { backgroundColor: colors.tint }]}
-            onPress={() => router.back()}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
             activeOpacity={0.8}
           >
             <MaterialIcons name="arrow-back" size={18} color="#fff" />

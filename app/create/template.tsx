@@ -174,7 +174,7 @@ export default function TemplateCreateScreen() {
           </ThemedText>
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: colors.tint }]}
-            onPress={() => router.back()}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
           >
             <ThemedText style={styles.backBtnText}>{'戻る'}</ThemedText>
           </TouchableOpacity>

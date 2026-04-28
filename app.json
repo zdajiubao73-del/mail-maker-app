@@ -2,7 +2,7 @@
   "expo": {
     "name": "メールメーカー",
     "slug": "mail-maker-app-expo-2a",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "AIがビジネスメールを自動作成。相手との関係性やメールの目的を選ぶだけで、敬語・マナーに配慮した日本語メールを瞬時に生成。Gmail連携で直接送信も可能。",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mailmaker.app",
-      "buildNumber": "31",
+      "buildNumber": "33",
       "locales": {
         "ja": "./locales/ja.json",
         "en": "./locales/en.json"
